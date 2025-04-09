@@ -255,7 +255,7 @@ def geoParams():
             )
 
     if 'fGeoPrpos_area_dstrc_nm_list' in st.session_state:
-        st.write('용도지역 및 용도지구 저촉사항은')                
+        st.write('용도지역 및 용도지구 ')                
         st.markdown(f'<p style="color:white; font-size:20px; font-weight:bold; background-color:#000000;">{st.session_state["fGeoPrpos_area_dstrc_nm_list"]}</p>', unsafe_allow_html=True)
 
 
