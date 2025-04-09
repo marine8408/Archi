@@ -29,3 +29,6 @@ ENV APIGW_API_KEY=""
 
 # Streamlit 애플리케이션 실행 (API 키 환경 변수를 전달)
 CMD ["sh", "-c", "CLOVASTUDIO_API_KEY=$CLOVASTUDIO_API_KEY APIGW_API_KEY=$APIGW_API_KEY streamlit run app.py"]
+
+# 임시
+RUN cat requirements.txt
