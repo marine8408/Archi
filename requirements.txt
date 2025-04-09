@@ -17,3 +17,6 @@ streamlit-option-menu
 millify
 pingouin
 jupyterlab
+PyMuPDF
+io
+re
