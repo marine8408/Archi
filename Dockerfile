@@ -7,8 +7,13 @@ WORKDIR /app
 # 필요한 파일들을 이미지로 복사
 COPY requirements.txt ./
 
-# 패키지 설치
-RUN pip install --no-cache-dir -r requirements.txt
+# 캐시 방지를 위해 requirements.txt 이름 변경 (빌드 캐시 우회)
+COPY requirements.txt ./requirements.txt
+
+# 패키지 설치 (강제 클린 설치)
+RUN rm -rf /root/.cache/pip && \
+    pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
 # 앱 파일을 이미지로 복사
 COPY . .
