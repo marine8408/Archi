@@ -10,6 +10,7 @@ import io
 from urllib.request import Request, urlopen 
 from urllib.parse import urlencode, quote_plus
 from PIL import Image
+from io import BytesIO
 
 # main 함수
 def main():
@@ -212,16 +213,16 @@ def geoParams():
                 fGeoPrpos_area_dstrc_nm_list = f'{geoPrpos_area_dstrc_nm_list}'
                 #st.write(geopdata)
 
-                # 정규표현식으로 숫자 제거
-                cleaned_fGeoPrpos_area_dstrc_nm_list = re.sub(r'[\d\-\[\]\{\}~!@#$%^&*_=+<>?/\\|]', '', fGeoPrpos_area_dstrc_nm_list)
+                # 정규표현식으로 특수기호 제거
+                cleaned_fGeoPrpos_area_dstrc_nm_list = re.sub(r'[\-\[\]\{\}~!@#$%^&*_=+<>?/\\|]', '', fGeoPrpos_area_dstrc_nm_list)
                 items_cleaned_fGeoPrpos_area_dstrc_nm_list = cleaned_fGeoPrpos_area_dstrc_nm_list.split(',')
 
-                items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict = {f'item{i+1}': val for i, val in enumerate(items_cleaned_fGeoPrpos_area_dstrc_nm_list)}
+                area_dict = {f'item{i+1}': val for i, val in enumerate(items_cleaned_fGeoPrpos_area_dstrc_nm_list)}
 
                 st.session_state['address'] = address
                 st.session_state['cutFGeoLnm_lndcgr_smbol'] = cutFGeoLnm_lndcgr_smbol
                 st.session_state['fGeoPrpos_area_dstrc_nm_list'] = fGeoPrpos_area_dstrc_nm_list
-                st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict'] = items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict
+                st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict'] = area_dict
                 
         except ZeroDivisionError:
             st.write("주소를 다시 확인하여 주시기 바랍니다")
@@ -235,23 +236,45 @@ def geoParams():
 
     else:
         st.write("토지이용정보가 궁금하시면 주소를 입력 후 검색하시기 바랍니다")
-    
-    if 'address' in st.session_state:
-        st.write('검색하신 주소는')
-        st.markdown(f'<p style="color:red; font-size:20px; font-weight:bold;">{st.session_state["address"]}</p>', unsafe_allow_html=True)
 
-    if 'cutFGeoLnm_lndcgr_smbol' in st.session_state:
-        st.write('지목은')        
-        st.markdown(f'<p style="color:red; font-size:20px; font-weight:bold;">{st.session_state["cutFGeoLnm_lndcgr_smbol"]}</p>', unsafe_allow_html=True) 
+    if 'address' in st.session_state and 'cutFGeoLnm_lndcgr_smbol' in st.session_state:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write('검색하신 주소는')
+            st.markdown(
+                f'<p style="color:white; font-size:20px; font-weight:bold; background-color:#000000;">{st.session_state["address"]}</p>', 
+                unsafe_allow_html=True
+            )
+
+        with col2:
+            st.write('지목은')        
+            st.markdown(
+                f'<p style="color:white; font-size:20px; font-weight:bold; background-color:#000000;">{st.session_state["cutFGeoLnm_lndcgr_smbol"]}</p>', 
+                unsafe_allow_html=True
+            )
 
     if 'fGeoPrpos_area_dstrc_nm_list' in st.session_state:
-        st.write('용도지역 및 용도지구 검색결과는')                
-        st.markdown(f'<p style="color:red; font-size:20px; font-weight:bold;">{st.session_state["fGeoPrpos_area_dstrc_nm_list"]}</p>', unsafe_allow_html=True)
+        st.write('용도지역 및 용도지구 저촉사항은')                
+        st.markdown(f'<p style="color:white; font-size:20px; font-weight:bold; background-color:#000000;">{st.session_state["fGeoPrpos_area_dstrc_nm_list"]}</p>', unsafe_allow_html=True)
 
-    # 확인
-    if 'items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict' in st.session_state:
-        for key, val in st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict'].items():
-            st.write(f"{key}: {val}")
+
+# PDF 추출 함수
+def extract_pdf_pages(original_path, page_range):
+    start_page, end_page = page_range
+    doc = fitz.open(original_path)
+    
+    new_pdf = fitz.open()  # 새 PDF 생성
+    for i in range(start_page - 1, end_page):  # 0-based 인덱스 사용
+        new_pdf.insert_pdf(doc, from_page=i, to_page=i)
+    
+    pdf_bytes = BytesIO()
+    new_pdf.save(pdf_bytes)
+    new_pdf.close()
+    doc.close()
+    
+    pdf_bytes.seek(0)
+    return pdf_bytes
 
 # pdfViewer 함수
 def pdfViewer(pdf_path):
@@ -259,34 +282,58 @@ def pdfViewer(pdf_path):
     st.markdown(
         f"""
         <p style="color:blue; font-size:20px; font-weight:bold;">
-            2. 검색 주소의 용도지역별 건축 제한 사항
+            2. 검색 주소의 용도지역별 건축 제한 사항(아래로 스크롤)
         </p>
         """,
         unsafe_allow_html=True
     )
 
+    pdf_page_ranges = {
+    '제1종전용주거지역': (1, 6),   # 페이지 지정
+    '제2종전용주거지역': (1, 6),   
+    '제1종일반주거지역': (1, 6), 
+    '제2종일반주거지역': (1, 6), 
+    '제3종일반주거지역': (1, 6), 
+    '준주거지역': (1, 6), 
+    '중심상업지역': (7, 12), 
+    '일반상업지역': (7, 12), 
+    '근린상업지역': (7, 12), 
+    '유통상업지역': (7, 12), 
+    '전용공업지역': (13, 18), 
+    '일반공업지역': (13, 18), 
+    '준공업지역': (13, 18), 
+    '보전녹지지역': (19, 24), 
+    '생산녹지지역': (19, 24), 
+    '자연녹지지역': (19, 24), 
+    '보전관리지역': (25, 30), 
+    '생산관리지역': (25, 30), 
+    '계획관리지역': (25, 30), 
+    }
 
-    # 🔓 PDF 열기
-    doc = fitz.open(pdf_path)
-    total_pages = len(doc)
 
-    # 🎚 슬라이더로 범위 지정
-    page_range = st.slider(
-        "👈 페이지 범위 선택 👉",
-        min_value=1,
-        max_value=total_pages,
-        value=(1, min(3, total_pages)),  # 기본값: 1~3
-        step=1
-    )
 
-    start_page, end_page = page_range
+    if 'items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict' not in st.session_state:
+        st.write("검색 주소지의 정보가 없습니다.")
+        return
+    
+    # geoParams 내 items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict 변수 가져와 새 변수 적용해 사용
+    area_dict = st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list_dict']
 
-    # 🖼 선택한 페이지 범위 이미지로 출력
-    for page_num in range(start_page - 1, end_page):
-        page = doc.load_page(page_num)
-        pix = page.get_pixmap(dpi=150)  # 해상도 조정 가능
-        img = Image.open(io.BytesIO(pix.tobytes("png")))
-        st.image(img, caption=f"📄 {page_num + 1} 페이지", use_container_width=True)
+
+    for key, val in area_dict.items():
+        #st.write(f"{key}: {val}")
+    
+        if val in pdf_page_ranges:          # pdf_page_ranges 딕셔너리 안에 area_dict 내 딕셔너리 값과 일치하는 사항이 있으면
+            doc = fitz.open(pdf_path)
+
+            start_page, end_page = pdf_page_ranges[val]  # 해당 키에 해당하는 값(튜플)을 언패킹
+
+            for page_num in range(start_page - 1, end_page):  # PyMuPDF는 0-based index
+                page = doc.load_page(page_num)
+                pix = page.get_pixmap(dpi=150)
+                img = Image.open(io.BytesIO(pix.tobytes("png")))
+                st.image(img, use_container_width=True)
+
 
 
 main()
