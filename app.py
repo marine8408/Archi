@@ -75,7 +75,7 @@ def main():
     geoData()
     
         # ✅ 3개 탭 생성
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["건폐율·용적률", "건축행위 제한사항", "기타 제한사항", "건축물 정보 등", "토지 소유자"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["건폐율·용적률", "건축행위 제한사항", "기타 제한사항", "건축물 정보 등", "토지 소유정보"])
 
     st.markdown("""
     <style>
@@ -113,7 +113,7 @@ def main():
     with tab4:
         st.write('')
     with tab5:
-        st.write('')
+        geoUser()
 
 # 토지속성 정보 처리 함수
 def geoParams():
@@ -186,7 +186,25 @@ def geoParams():
             unsafe_allow_html=True
             )
         if st.button("주소 검색", type='primary'):
-            st.session_state.search_triggered = True
+            # ✅ 1. 현재 입력값 임시 백업
+            st.session_state["search_triggered"] = True
+            st.session_state["umd"] = umd
+            st.session_state["umd2"] = umd2
+            st.session_state["bonbun"] = bonbun
+            st.session_state["bubun"] = bubun
+
+            # ✅ 2. 이전 검색 결과 초기화 (이 부분에서 clear() 대신 개별 삭제 권장)
+            for key in ["vworld_x", "vworld_y", "address", "cutFGeoLnm_lndcgr_smbol", "fGeoPrpos_area_dstrc_nm_list", 'items_cleaned_fGeoPrpos_area_dstrc_nm_list', 'lndpcl_ar', 'pnu', 'land_info', 'block_other_functions']:
+                if key in st.session_state:
+                    del st.session_state[key]
+
+            # 어떤 로직에서 필요할 때
+            clear_layer_session("LT_C_DAMYOJ")
+            clear_layer_session("LT_C_LHBLPN")
+
+
+            # ✅ 3. 검색 결과는 리런 후 조건문에서 표시
+            st.rerun()
 
     with col6:
         st.markdown(
@@ -232,175 +250,142 @@ def geoParams():
             if not fbonbun or fbonbun.startswith('0'):     #bonbun 이 비어있거나 0으로 시작할 때
                 st.write('없는 주소입니다.')
             else:
-                if fbubun.startswith('0'):
-                    st.write('없는 주소입니다.')   
-                else:
-                    if not fbubun:             #bubun 이 비어있으면
-                        if fumd2.strip() == '일반':      #아직까지 일반과 산 번지를 제대로 인식 못함 나중에 고치자
-                            params = {
-	                        'service': 'address',
-	                        'request': 'getcoord',
-	                        'crs': 'epsg:4326',
-	                        'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fbonbun,
-	                        'format': 'json',
-	                        'type': 'parcel',
-	                        'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }                        
-                        else:
-                            params = {
-	                        'service': 'address',
-	                        'request': 'getcoord',
-	                        'crs': 'epsg:4326',
-	                        'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fumd2 + ' ' + fbonbun,
-	                        'format': 'json',
-	                        'type': 'parcel',
-	                        'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }  
+                if not fbubun:             #bubun 이 비어있으면
+                    if fumd2.strip() == '일반':      #아직까지 일반과 산 번지를 제대로 인식 못함 나중에 고치자
+                        params = {
+	                    'service': 'address',
+	                    'request': 'getcoord',
+	                    'crs': 'epsg:4326',
+	                    'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fbonbun,
+	                    'format': 'json',
+	                    'type': 'parcel',
+	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }                        
                     else:
-                        if fumd2.strip() == '일반':
-                            params = {
-	                        'service': 'address',
-	                        'request': 'getcoord',
-	                        'crs': 'epsg:4326',
-	                        'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fbonbun + '-' + fbubun,
-	                        'format': 'json',
-	                        'type': 'parcel',
-	                        'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }                
-                        else:
-                            params = {
-	                        'service': 'address',
-	                        'request': 'getcoord',
-	                        'crs': 'epsg:4326',
-	                        'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fumd2 + ' ' + fbonbun + '-' + fbubun,
-	                        'format': 'json',
-	                        'type': 'parcel',
-	                        'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }   
+                        params = {
+	                    'service': 'address',
+	                    'request': 'getcoord',
+	                    'crs': 'epsg:4326',
+	                    'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fumd2 + ' ' + fbonbun,
+	                    'format': 'json',
+	                    'type': 'parcel',
+	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }
+                else:   #부번이 있을 경우
+                    if fbubun.strip().startswith('0'):
+                        st.write('없는 주소입니다.')   
+                        return
+                    if fumd2.strip() == '일반':
+                        params = {
+	                    'service': 'address',
+	                    'request': 'getcoord',
+	                    'crs': 'epsg:4326',
+	                    'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fbonbun + '-' + fbubun,
+	                    'format': 'json',
+	                    'type': 'parcel',
+	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }   
+                    else:
+                        params = {
+	                    'service': 'address',
+	                    'request': 'getcoord',
+	                    'crs': 'epsg:4326',
+	                    'address': '광주광역시 광산구' + ' ' + fumd + ' ' + fumd2 + ' ' + fbonbun + '-' + fbubun,
+	                    'format': 'json',
+	                    'type': 'parcel',
+	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }   
 
-                    response = requests.get(apiurl, params=params, verify=True)
+                response = requests.get(apiurl, params=params, verify=True)
                     
-                    #st.write(response.json())
+                #st.write(response.json())
     
-                    if response.status_code == 200 and response.status_code:
-                        print(response.json())
-                        data = response.json()
-                        # 브이월드 서버 지오코더에서 받아온 데이타 중 좌표 x, y 값 출력
-                        x = data['response']['result']['point']['x']
-                        y = data['response']['result']['point']['y']
+                if response.status_code == 200 and response.status_code:
+                    print(response.json())
+                    data = response.json()
+                    # 브이월드 서버 지오코더에서 받아온 데이타 중 좌표 x, y 값 출력
+                    x = data['response']['result']['point']['x']
+                    y = data['response']['result']['point']['y']
 
-                        # session_state에 저장, 다른 함수에서 좌표 활용하기
-                        st.session_state['vworld_x'] = x
-                        st.session_state['vworld_y'] = y
+                    # session_state에 저장, 다른 함수에서 좌표 활용하기
+                    st.session_state['vworld_x'] = x
+                    st.session_state['vworld_y'] = y
 
-                        address = data['response']['input']['address']   #입력한 주소 보여주기
+                    address = data['response']['input']['address']   #입력한 주소 보여주기
                         
-                        address1 = str(data['response']['input']['address'])
-                        address2 = str(data['response']['refined']['text'])
+                    address1 = str(data['response']['input']['address'])
+                    address2 = str(data['response']['refined']['text'])
 
-                        if address1 != address2:         #산 번지 인식 마지막 제대로 판별하기
-                            st.write('없는 주소입니다.')
-                        else:                
-                            #st.write(data)
-                            #st.write(address)
+                    if address1 != address2:         #산 번지 인식 마지막 제대로 판별하기
+                        st.write('없는 주소입니다.')
+                        st.session_state["block_other_functions"] = True  # 🚫 별도 실행도 막기
+                        return  # ✅ 이후 코드 실행 중단
+                    else:
+                        #여기부터 토지이용속성 조회
+                        pbbox = f'{y},{x},{y},{x},EPSG:4326'    #pbbox 변수에 지오코더 좌표 값 문자열 받기
 
-                            #print(x, y)
-
-        
-                            # Extracting data for table
-                            #result_info = data['response']['result']
-                            #point_info = result_info['point']
-
-                            #df = pd.DataFrame([
-                            #['Service Address', result_info['point']],
-                            #['Longitude', point_info['x']],
-                            #['Latitude', point_info['y']]
-                            #], columns=['Key', 'Value'])
-                            #print(df)
-
-                            #print("좌표추출끝")
-        
-                            #st.write(data)          #json 구조 확인 중요
+                        url = 'https://api.vworld.kr/ned/wfs/getLandUseWFS'
+                        params = {
+                            'key' : '86DD225C-DC5B-3B81-B9EB-FB135EEEB78C',
+                            'typename' : 'dt_d154',
+                            'bbox' : pbbox,
+                            'maxFeatures' : '10',
+                            'resultType' : 'results',
+                            'srsName' : 'EPSG:4326',
+                            'output' : 'application/json'}
 
 
-                            #여기부터 토지이용속성 조회
-                            pbbox = f'{y},{x},{y},{x},EPSG:4326'    #pbbox 변수에 지오코더 좌표 값 문자열 받기
+                        response = requests.get(url, params=params, verify=True)
+                        data = response.json()          
+                        #st.write(data)           #json 구조 확인 중요
 
-                            url = 'https://api.vworld.kr/ned/wfs/getLandUseWFS'
+                        geoLnm_lndcgr_smbol = data['features'][0]['properties']['lnm_lndcgr_smbol']
+                        fGeoLnm_lndcgr_smbol = f'{geoLnm_lndcgr_smbol}'
+                        cutFGeoLnm_lndcgr_smbol = ''
 
-        
-                            #queryParams = '?' + urlencode({
-                            #    'key' : '86DD225C-DC5B-3B81-B9EB-FB135EEEB78C',
-                            #    'typename' : 'dt_d154',
-                            #    'bbox' : pbbox,
-                            #    'maxFeatures' : '10',
-                            #    'resultType' : 'results',
-                            #    'srsName' : 'EPSG:4326',
-                            #    'output' : 'text/xml; subtype=gml/2.1.2'})   
-
-                            #request = Request(url + queryParams)
-                            #request.get_method = lambda: 'GET'
-                            #response_body = urlopen(request).read()
-                            #print(response_body.decode('utf-8'))
-        
-
-                            params = {
-                                'key' : '86DD225C-DC5B-3B81-B9EB-FB135EEEB78C',
-                                'typename' : 'dt_d154',
-                                'bbox' : pbbox,
-                                'maxFeatures' : '10',
-                                'resultType' : 'results',
-                                'srsName' : 'EPSG:4326',
-                                'output' : 'application/json'}
-
-        
-                            response = requests.get(url, params=params, verify=True)
-                            data = response.json()          
-                            #st.write(data)           #json 구조 확인 중요
-
-                            geoLnm_lndcgr_smbol = data['features'][0]['properties']['lnm_lndcgr_smbol']
-                            fGeoLnm_lndcgr_smbol = f'{geoLnm_lndcgr_smbol}'
-                            cutFGeoLnm_lndcgr_smbol = ''
-
-                            for char in reversed(fGeoLnm_lndcgr_smbol):
-                                if char.isdigit():
-                                    break
-                                cutFGeoLnm_lndcgr_smbol = char + cutFGeoLnm_lndcgr_smbol
+                        for char in reversed(fGeoLnm_lndcgr_smbol):
+                            if char.isdigit():
+                                break
+                            cutFGeoLnm_lndcgr_smbol = char + cutFGeoLnm_lndcgr_smbol
 
 
-                            geoPrpos_area_dstrc_nm_list = data['features'][0]['properties']['prpos_area_dstrc_nm_list']
-                            fGeoPrpos_area_dstrc_nm_list = f'{geoPrpos_area_dstrc_nm_list}'
-                            #st.write(geopdata)
+                        geoPrpos_area_dstrc_nm_list = data['features'][0]['properties']['prpos_area_dstrc_nm_list']
+                        fGeoPrpos_area_dstrc_nm_list = f'{geoPrpos_area_dstrc_nm_list}'
+                        #st.write(geopdata)
 
-                            # 1. 괄호 및 괄호 안 내용 제거 (중첩 포함)
-                            while re.search(r'[\(\（][^()\（\）]*[\)\）]', fGeoPrpos_area_dstrc_nm_list):
-                                fGeoPrpos_area_dstrc_nm_list = re.sub(r'[\(\（][^()\（\）]*[\)\）]', '', fGeoPrpos_area_dstrc_nm_list)
+                        #pnu 코드 추출 차후 다른 함수에서 재사용 필요
+                        pnu = data['features'][0]['properties']['pnu']
+                        st.session_state['pnu'] = pnu
 
-                            # 2. 쉼표 기준 항목 분리
-                            area_items = fGeoPrpos_area_dstrc_nm_list.split(',')
+                        # 1. 괄호 및 괄호 안 내용 제거 (중첩 포함)
+                        while re.search(r'[\(\（][^()\（\）]*[\)\）]', fGeoPrpos_area_dstrc_nm_list):
+                            fGeoPrpos_area_dstrc_nm_list = re.sub(r'[\(\（][^()\（\）]*[\)\）]', '', fGeoPrpos_area_dstrc_nm_list)
 
-                            # 3. 각 항목의 끝에서 숫자/기호 제거
-                            cleaned_items = [
-                                re.sub(r'[\d\s\-\–\.\~\+\=\!@\#\$%\^&\*\(\)_]+$', '', item.strip()) 
-                                for item in area_items
-                            ]
+                        # 2. 쉼표 기준 항목 분리
+                        area_items = fGeoPrpos_area_dstrc_nm_list.split(',')
 
-                            # 4. 항목 사이 쉼표/공백 정리
-                            cleaned_fGeoPrpos_area_dstrc_nm_list = ', '.join(cleaned_items)
-                            cleaned_fGeoPrpos_area_dstrc_nm_list = re.sub(r'\s+', ' ', cleaned_fGeoPrpos_area_dstrc_nm_list).strip()
+                        # 3. 각 항목의 끝에서 숫자/기호 제거
+                        cleaned_items = [
+                            re.sub(r'[\d\s\-\–\.\~\+\=\!@\#\$%\^&\*\(\)_]+$', '', item.strip()) 
+                            for item in area_items
+                        ]
 
-                            # ✅ 최종 결과
-                            print(cleaned_fGeoPrpos_area_dstrc_nm_list)
+                        # 4. 항목 사이 쉼표/공백 정리
+                        cleaned_fGeoPrpos_area_dstrc_nm_list = ', '.join(cleaned_items)
+                        cleaned_fGeoPrpos_area_dstrc_nm_list = re.sub(r'\s+', ' ', cleaned_fGeoPrpos_area_dstrc_nm_list).strip()
 
-                            # 괄호 안 제거 및 정제된 문자열에서 항목 분리
-                            items_cleaned_fGeoPrpos_area_dstrc_nm_list = [
-                                item.strip() for item in cleaned_fGeoPrpos_area_dstrc_nm_list.split(',')
-                            ]
+                        # ✅ 최종 결과
+                        print(cleaned_fGeoPrpos_area_dstrc_nm_list)
 
-                            # 딕셔너리 형태로 만들기
-                            area_dict = {f'item{i+1}': val for i, val in enumerate(items_cleaned_fGeoPrpos_area_dstrc_nm_list)}
+                        # 괄호 안 제거 및 정제된 문자열에서 항목 분리
+                        items_cleaned_fGeoPrpos_area_dstrc_nm_list = [
+                            item.strip() for item in cleaned_fGeoPrpos_area_dstrc_nm_list.split(',')
+                        ]
 
-                            # 세션 저장
-                            st.session_state['address'] = address
-                            st.session_state['cutFGeoLnm_lndcgr_smbol'] = cutFGeoLnm_lndcgr_smbol
-                            st.session_state['fGeoPrpos_area_dstrc_nm_list'] = fGeoPrpos_area_dstrc_nm_list
-                            st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list'] = area_dict
+                        # 딕셔너리 형태로 만들기
+                        area_dict = {f'item{i+1}': val for i, val in enumerate(items_cleaned_fGeoPrpos_area_dstrc_nm_list)}
+
+                        # 세션 저장
+                        st.session_state['address'] = address
+                        st.session_state['cutFGeoLnm_lndcgr_smbol'] = cutFGeoLnm_lndcgr_smbol
+                        st.session_state['fGeoPrpos_area_dstrc_nm_list'] = fGeoPrpos_area_dstrc_nm_list
+                        st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list'] = area_dict
 
         except ZeroDivisionError:
             st.write("없는 주소입니다.")
@@ -416,19 +401,54 @@ def geoParams():
         st.write("토지이용정보가 궁금하시면 주소를 입력 후 검색하시기 바랍니다")
 
     if 'address' in st.session_state and 'cutFGeoLnm_lndcgr_smbol' in st.session_state:
-        col1, col2 = st.columns(2)
+
+        geoInfo()
+        if "land_info" not in st.session_state:
+            st.warning("📌 토지 정보가 없습니다. 먼저 주소를 검색해주세요.")
+            return    
+
+        land_info = st.session_state["land_info"]
+
+        lndcgrCodeNm = land_info.get("지목")
+        #lndpclAr = land_info.get("면적")
+        pblntfPclnd = land_info.get("공시지가")
+        # 천 단위 구분 기호 추가
+        formatted_price = f"{int(pblntfPclnd):,}"  # → '1,299,000'
+        dateStandard = land_info.get("데이터기준일자")
+
+        if "lndpcl_ar" not in st.session_state:
+            st.warning("📌 토지 정보가 없습니다. 먼저 주소를 검색해주세요.")
+            return
+
+        # 단순 값으로 할당
+        lndpclAr = st.session_state["lndpcl_ar"]
+
+
+        col1, col2, col3, col4 = st.columns([2, 0.6, 0.8, 1])
 
         with col1:
-            st.write('검색하신 주소는')
+            st.write('검색 주소')
             st.markdown(
                 f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{st.session_state["address"]}</p>', 
                 unsafe_allow_html=True
             )
 
         with col2:
-            st.write('지목은')        
+            st.write('지목')        
             st.markdown(
-                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{st.session_state["cutFGeoLnm_lndcgr_smbol"]}</p>', 
+                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{lndcgrCodeNm}</p>', 
+                unsafe_allow_html=True
+            )
+        with col3:
+            st.write('토지면적')        
+            st.markdown(
+                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{lndpclAr}㎡</p>', 
+                unsafe_allow_html=True
+            )
+        with col4:
+            st.write('개별공시지가(㎡당)')        
+            st.markdown(
+                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{formatted_price}원 ({dateStandard})</p>', 
                 unsafe_allow_html=True
             )
 
@@ -440,99 +460,286 @@ def geoParams():
         # 마크다운을 사용하여 스타일 적용
         st.markdown(f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{area_list_str}</p>', unsafe_allow_html=True)
 
-def geoData():
-    if 'vworld_x' in st.session_state and 'vworld_y' in st.session_state:
-        x = st.session_state['vworld_x']
-        y = st.session_state['vworld_y']
-        #st.info(f"📍 저장된 좌표: X = {x}, Y = {y}")
-        
-        geom_filter = f"POINT({x} {y})"
-        #st.code(f"geomFilter: {geom_filter}", language='text')
-    else:
-        #st.warning("좌표 정보가 없습니다. 주소를 먼저 검색해 주세요.")
-        return  # 좌표 없으면 중단
+def clear_layer_session(layer):
+    for suffix in ["zonename", "blocktype"]:
+        key = f"{layer}_{suffix}"
+        if key in st.session_state:
+            del st.session_state[key]
 
-    # ▶️ VWorld API 요청
+def geoUser():
+    if "land_info" not in st.session_state:
+        #st.warning("📌 토지 정보가 없습니다. 먼저 주소를 검색해주세요.")
+        return
+
+    land_info = st.session_state["land_info"]
+
+    posesnSeCodeNm = land_info.get("소유구분", "")
+    nationInsttSeCodeNm = land_info.get("국가기관일 경우 구분", "")
+    ownshipChgCauseCodeNm = land_info.get("소유권변동원인", "")
+    ownshipChgDe = land_info.get("소유권변동일자", "")
+    cnrsPsnCo = land_info.get("공유인수", "")
+    lastUpdtDt = land_info.get("데이터기준일자", "")
+
+    html_table = f"""
+    <style>
+    table {{
+        width: 100%;
+        border-collapse: collapse;
+        text-align:center;
+        margin: 20px auto;
+        font-family: Arial, sans-serif;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }}
+    th, td {{
+        border: 1px solid #ccc;
+        padding: 12px 15px;
+        text-align:center;
+    }}
+    th {{
+        background-color: #f0f0f0;
+        font-weight: bold;
+    }}
+    tr:nth-child(even) {{
+        background-color: #f9f9f9;
+    }}
+    tr:hover {{
+        background-color: #e6f7ff;
+    }}
+    </style>
+
+    <table>
+      <thead>
+        <tr><th>항목</th><th>정보</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>소유구분</td><td>{posesnSeCodeNm}</td></tr>
+        <tr><td>국가기관구분</td><td>{nationInsttSeCodeNm}</td></tr>
+        <tr><td>소유권변동원인</td><td>{ownshipChgCauseCodeNm}</td></tr>
+        <tr><td>소유권변동일자</td><td>{ownshipChgDe}</td></tr>
+        <tr><td>공유인수</td><td>{cnrsPsnCo}</td></tr>
+        <tr><td>데이터기준일자</td><td>{lastUpdtDt}</td></tr>
+      </tbody>
+    </table>
+    """
+
+    st.markdown(html_table, unsafe_allow_html=True)
+
+def geoData():
+    if st.session_state.get("block_other_functions"):
+        return  # 🚫 차단된 경우 아무것도 하지 않음
+    
+    if 'vworld_x' not in st.session_state or 'vworld_y' not in st.session_state:
+        return
+
+    x = st.session_state['vworld_x']
+    y = st.session_state['vworld_y']
+    geom_filter = f"POINT({x} {y})"
+
     url = "https://api.vworld.kr/req/data"
     API_KEY = 'AF338F49-6AAA-3F06-BD94-FB6CB6817323'
 
-    params = {
-        "service": "data",
-        "version": "2.0",
-        "request": "GetFeature",
-        "key": API_KEY,
+    data_layers = ['LT_C_LHBLPN', 'LT_C_DAMYOJ']
+    results = {}
+
+    for layer in data_layers:
+        params = {
+            "service": "data",
+            "version": "2.0",
+            "request": "GetFeature",
+            "key": API_KEY,
+            "format": "json",
+            "data": layer,
+            "geomFilter": geom_filter,
+            "geometry": "true",
+            "attribute": "true",
+            "crs": "EPSG:4326"
+        }
+
+        response = requests.get(url, params=params)
+
+        if response.status_code == 200:
+            data = response.json()
+            results[layer] = data
+            #st.write(results[layer])
+            # 필요한 키가 있는지 확인
+            if 'response' in data and \
+               'result' in data['response'] and \
+               'featureCollection' in data['response']['result'] and \
+               'features' in data['response']['result']['featureCollection']:
+
+                features = data['response']['result']['featureCollection']['features']
+
+                if not features:
+                    st.warning(f"❗ '{layer}' 레이어에 해당 좌표의 정보가 없습니다.")
+                    continue
+
+                props = features[0].get('properties', {})
+                
+                # 레이어별로 키를 다르게 설정
+                if layer == 'LT_C_DAMYOJ':  #산업단지일 경우
+                    zonename = props.get('dan_name', '없음')
+                    zonename = zonename +'산업단지'
+                    blocktype = props.get('cat_nam', '없음')
+                else:
+                    zonename = props.get('zonename', '없음')
+                    blocktype = props.get('blocktype', '없음')
+
+                st.session_state[f'{layer}_zonename'] = zonename
+                st.session_state[f'{layer}_blocktype'] = blocktype
+
+                # ✅ HTML 표 출력
+                html_table = f"""
+                <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
+                    <thead>
+                        <tr style="background-color: #E0ECFF;">
+                            <th colspan="2" style="border: 1px solid #ccc; padding: 12px; background:orange; text-align: center; font-size: 14px;">
+                                {zonename} 정보
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="border: 1px solid #ccc; text-align:center; padding: 8px;">용도지구명</td>
+                            <td style="border: 1px solid #ccc; text-align:center; padding: 8px; font-weight: bold;">{zonename}</td>
+                        </tr>
+                        <tr>
+                            <td style="border: 1px solid #ccc; text-align:center; padding: 8px;">용지구분</td>
+                            <td style="border: 1px solid #ccc; text-align:center; padding: 8px; font-weight: bold;">{blocktype}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                """
+                st.markdown(html_table, unsafe_allow_html=True)
+
+        else:
+            st.error(f"{layer} ❌ API 요청 실패: {response.status_code}")
+
+    return results
+
+def geoInfo():    
+    geoUrl = 'https://api.vworld.kr/ned/data/getPossessionAttr'
+    geoUrl2 = 'https://api.vworld.kr/ned/wfs/getPossessionWFS'    #토지면적 확인용 추가
+    
+
+    if 'pnu' not in st.session_state:
+        st.warning("📌 PNU 정보가 없습니다. 주소를 먼저 검색하세요.")
+        return
+
+    geoPnu = st.session_state['pnu']
+
+    geoParams = {
+        "pnu": geoPnu,
         "format": "json",
-        "data": "LT_C_LHBLPN",
-        "geomFilter": geom_filter,
-        "geometry": "true",
-        "attribute": "true",
-        "crs": "EPSG:4326"
+        "numOfRows": "20",
+        "pageNo": "1",
+        "key": "51505128-E7A1-3BBE-A140-BBCF45FEF488",
+        "domain": 'http://223.130.142.3:8501/'
     }
 
-    response = requests.get(url, params=params)
+    try:
+        response = requests.get(geoUrl, params=geoParams)
 
-    if response.status_code == 200:
-        try:
-            data = response.json()
-            features = data['response']['result']['featureCollection']['features']
-            if not features:
-                st.warning("❗ 해당 좌표에 대한 택지 정보가 없습니다.")
-                return
+        if response.status_code == 200:
+            result = response.json()            
+            #st.json(result)
 
-            props = features[0]['properties']
-            zonename = props.get('zonename', '없음')
-            blocktype = props.get('blocktype', '없음')
+            try:
+                fields = result.get("possessions", {}).get("field", [])  # ← 올바른 구조
 
-            # session_state에 저장
-            st.session_state['zonename'] = zonename
-            st.session_state['blocktype'] = blocktype
+                if isinstance(fields, list) and len(fields) > 0:
+                    field = fields[0]
+                else:
+                    st.warning("❗ 토지 정보가 없습니다.")
+                    return
 
-            # ✅ HTML 표 출력
-            html_table = f"""
-            <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
-                <thead>
-                    <tr style="background-color: #E0ECFF;">
-                        <th colspan="2" style="border: 1px solid #ccc; padding: 12px; background:orange; text-align: center; font-size: 14px;">
-                            택지개발지구 정보
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="border: 1px solid #ccc; text-align:center; padding: 8px;">용도지구명</td>
-                        <td style="border: 1px solid #ccc; text-align:center; padding: 8px; font-weight: bold;">{zonename}</td>
-                    </tr>
-                    <tr>
-                        <td style="border: 1px solid #ccc; text-align:center; padding: 8px;">용지구분</td>
-                        <td style="border: 1px solid #ccc; text-align:center; padding: 8px; font-weight: bold;">{blocktype}</td>
-                    </tr>
-                </tbody>
-            </table>
-            """
-            st.markdown(html_table, unsafe_allow_html=True)
+                # 주요 항목 추출
+                areaUse = field.get("lndcgrCodeNm", "없음")
+                area = field.get("lndpclAr", "없음")
+                landValue = field.get("pblntfPclnd", "없음")
+                ownerType = field.get("posesnSeCodeNm", "없음")
+                ownerNationtype = field.get("nationInsttSeCodeNm", "없음")
+                ownReason = field.get("ownshipChgCauseCodeNm", "없음")
+                ownDate = field.get("ownshipChgDe", "없음")
+                ownNumber = field.get("cnrsPsnCo", "없음")
+                dateStandard = field.get("lastUpdtDt", "없음")
 
-        except (KeyError, IndexError, ValueError) as e:
-            st.write(" ")
-            #html_table = """
-            #<table style="border-collapse: collapse; width: 100%; font-size: 18px;">
-                #<tr style="background-color: #E0ECFF;">
-                    #<td colspan="2" style="border: 1px solid #ccc; padding: 12px; text-align: center; background:orange;">
-                        #택지개발지구 정보
-                    #</td>
-                #</tr>
-                #<tr>
-                    #<td colspan="2" style="border: 1px solid #ccc; padding: 10px; text-align: center; color: gray;">
-                        #해당되는 정보가 없습니다.
-                    #</td>
-                #</tr>
-            #</table>
-            #"""
+                # ✅ land_info 저장
+                st.session_state["land_info"] = {
+                    "지목": areaUse,
+                    "면적": area,
+                    "공시지가": landValue,
+                    "소유구분": ownerType,
+                    "국가기관구분": ownerNationtype,
+                    "소유권 변동원인": ownReason,
+                    "최근 소유권 변동일자": ownDate,
+                    "공유인수": ownNumber,
+                    "데이터 기준일자": dateStandard
+                }
 
-            # 렌더링
-            #st.markdown(html_table, unsafe_allow_html=True)
+                # 확인 출력
+                #st.success("✅ 토지 정보가 성공적으로 불러와졌습니다.")
+                #st.json(st.session_state["land_info"])
 
-    else:
-        st.error(f"❌ API 요청 실패: {response.status_code}")
+            except Exception as e:
+                st.error(f"❗ 항목 추출 중 오류: {e}")
+
+        else:
+            st.error(f"❌ 요청 실패: {response.status_code}")
+            st.text(response.text)
+
+    except Exception as e:
+        st.error(f"❗ 요청 중 오류 발생: {e}")
+
+    geoParams2 = {
+        "service": "WFS",                        # WFS 서비스 명시
+        "version": "1.1.0",                      # WFS 버전
+        "request": "GetFeature",                 # 요청 타입
+        "typename": "dt_d160",                   # 피처 유형 (지목, 용도지역 등)
+        "pnu": geoPnu,           # 필지고유번호 (19자리)
+        "maxFeatures": "10",                     # 최대 결과 수
+        "resultType": "results",                 # 전체 결과 반환 (또는 'hits' 가능)
+        "srsName": "EPSG:4326",                  # 좌표계
+        "output": "application/json",            # 응답 포맷 (GML2도 가능하지만 JSON 추천)
+        "key": "AF66F589-DB7C-30FE-AFB5-C58D1C28B1A1",  # 발급받은 API 키
+        "domain": "http://223.130.142.3:8501/"   # 호출 도메인
+    }
+
+    try:
+        response = requests.get(geoUrl2, params=geoParams2)
+
+        if response.status_code == 200:
+            result = response.json()
+            # st.json(result)  # 응답 구조 확인용 (필요 시 사용)
+
+            try:
+                # features 리스트에서 첫 번째 feature 추출
+                features = result.get("features", [])
+                
+                if not features:
+                    st.warning("❗ features 항목이 비어 있습니다.")
+                    return
+
+                properties = features[0].get("properties", {})
+                lndpcl_ar = properties.get("lndpcl_ar", None)
+
+                if lndpcl_ar is not None:
+                    # ✅ 세션 상태에 저장
+                    st.session_state["lndpcl_ar"] = lndpcl_ar
+                    # st.success(f"✅ 토지면적 저장 완료: {lndpcl_ar}㎡")
+                else:
+                    st.warning("❗ 'lndpcl_ar' 항목이 존재하지 않습니다.")
+
+            except Exception as e:
+                st.error(f"❗ JSON 파싱 중 오류: {e}")
+
+        else:
+            st.error(f"❌ 요청 실패: {response.status_code}")
+            st.text(response.text)
+
+    except Exception as e:
+        st.error(f"❗ 요청 중 예외 발생: {e}")
+
+
 
 # 건축물 세부용도 정의 함수
 def buildingIndex():
