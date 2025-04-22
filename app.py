@@ -353,16 +353,17 @@ def geoParams():
                         pnu = data['features'][0]['properties']['pnu']
                         st.session_state['pnu'] = pnu
 
+                        #print(fGeoPrpos_area_dstrc_nm_list)
+
                         # 1. 괄호 및 괄호 안 내용 제거 (중첩 포함)
-                        while re.search(r'[\(\（][^()\（\）]*[\)\）]', fGeoPrpos_area_dstrc_nm_list):
-                            fGeoPrpos_area_dstrc_nm_list = re.sub(r'[\(\（][^()\（\）]*[\)\）]', '', fGeoPrpos_area_dstrc_nm_list)
+                        fGeoPrpos_area_dstrc_nm_list = remove_parens_but_keep_exceptions(fGeoPrpos_area_dstrc_nm_list)
 
                         # 2. 쉼표 기준 항목 분리
                         area_items = fGeoPrpos_area_dstrc_nm_list.split(',')
 
                         # 3. 각 항목의 끝에서 숫자/기호 제거
                         cleaned_items = [
-                            re.sub(r'[\d\s\-\–\.\~\+\=\!@\#\$%\^&\*\(\)_]+$', '', item.strip()) 
+                            re.sub(r'[\d\s\-\–\.\~\+\=\!@\#\$%\^&\*\_]+$', '', item.strip()) 
                             for item in area_items
                         ]
 
@@ -380,6 +381,24 @@ def geoParams():
 
                         # 딕셔너리 형태로 만들기
                         area_dict = {f'item{i+1}': val for i, val in enumerate(items_cleaned_fGeoPrpos_area_dstrc_nm_list)}
+
+                        # 분류 결과를 담을 딕셔너리 초기화. 3가지로 분류
+                        classified_area_dict = {
+                            '저촉': {},
+                            '접합': {},
+                            '포함': {}
+                        }
+
+                        # 2. 딕셔너리 순회하면서 조건 분류
+                        for key, value in area_dict.items():
+                            if '(저촉)' in value:
+                                classified_area_dict['저촉'][key] = value
+                            elif '(접합)' in value:
+                                classified_area_dict['접합'][key] = value
+                            else:
+                                classified_area_dict['포함'][key] = value
+
+
 
                         # 세션 저장
                         st.session_state['address'] = address
@@ -414,51 +433,137 @@ def geoParams():
         pblntfPclnd = land_info.get("공시지가")
         # 천 단위 구분 기호 추가
         formatted_price = f"{int(pblntfPclnd):,}"  # → '1,299,000'
-        dateStandard = land_info.get("데이터기준일자")
+        dateStandard = land_info.get("데이터 기준일자")
 
         if "lndpcl_ar" not in st.session_state:
             st.warning("📌 토지 정보가 없습니다. 먼저 주소를 검색해주세요.")
             return
 
-        # 단순 값으로 할당
+        # 단순 값으로 할당 토지면적
         lndpclAr = st.session_state["lndpcl_ar"]
+        # 천 단위 구분 기호 추가
+        lndpclAr = float(lndpclAr)  # 숫자 변환 (문자열일 경우 대비)
+        if lndpclAr.is_integer():
+            lndpclAr = f"{int(lndpclAr):,}"  # 정수면 소수점 없이 출력
+        else:
+            lndpclAr = f"{lndpclAr:,.1f}"     # 소수점 있으면 소수점 첫째 자리까지
 
 
-        col1, col2, col3, col4 = st.columns([2, 0.6, 0.8, 1])
+        st.markdown(f"""
+        <style>
+            .custom-table {{
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 14px;
+                font-weight: normal;
+            }}
+            .custom-table th, .custom-table td {{
+                text-align: center;
+                padding: 10px;
+                border: 1px solid #ccc;
+                background-color: #fff;
+                font-weight: normal;
+                font-size: 14px;
+            }}
+            .custom-table th {{
+                background-color: #f5f5f5;
+                font-weight: bold;
+                color: black;
+            }}
+        </style>
 
-        with col1:
-            st.write('검색 주소')
-            st.markdown(
-                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{st.session_state["address"]}</p>', 
-                unsafe_allow_html=True
-            )
-
-        with col2:
-            st.write('지목')        
-            st.markdown(
-                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{lndcgrCodeNm}</p>', 
-                unsafe_allow_html=True
-            )
-        with col3:
-            st.write('토지면적')        
-            st.markdown(
-                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{lndpclAr}㎡</p>', 
-                unsafe_allow_html=True
-            )
-        with col4:
-            st.write('개별공시지가(㎡당)')        
-            st.markdown(
-                f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{formatted_price}원 ({dateStandard})</p>', 
-                unsafe_allow_html=True
-            )
+        <table class="custom-table">
+            <tr>
+                <th>검색 주소</th>
+                <th>지목</th>
+                <th>토지면적</th>
+                <th>㎡당 개별공시지가 (기준일)</th>
+            </tr>
+            <tr>
+                <td>{st.session_state["address"]}</td>
+                <td>{lndcgrCodeNm}</td>
+                <td>{lndpclAr}㎡</td>
+                <td>{formatted_price}원 ({dateStandard})</td>
+            </tr>
+        </table>
+        """, unsafe_allow_html=True)
 
     if 'fGeoPrpos_area_dstrc_nm_list' in st.session_state:
-        st.write('용도지역 및 용도지구 ')                
-        # 세션에 저장된 리스트 항목을 쉼표로 구분하여 문자열로 변환
-        area_list_str = ', '.join(st.session_state["items_cleaned_fGeoPrpos_area_dstrc_nm_list"].values())
+        # 예: 좌측에 표시할 사용자 정의 레이블
+        label1 = '포함'
+        label2 = '저촉'
+        label3 = '접합'
 
-        # 마크다운을 사용하여 스타일 적용
-        st.markdown(f'<p style="color:black; font-size:20px; font-weight:bold; background-color:white;">{area_list_str}</p>', unsafe_allow_html=True)
+        # 기타 항목의 값들을 쉼표로 연결하여 한 줄 출력
+        joined_values1 = ', '.join(classified_area_dict['포함'].values())
+        joined_values2 = ', '.join(classified_area_dict['저촉'].values())
+        joined_values3 = ', '.join(classified_area_dict['접합'].values())
+
+        html_table = f"""
+        <style>
+            .usezone-table {{
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 14px;
+                border: 2px solid black;
+            }}
+            .usezone-table th {{
+                background-color: #FFA500;
+                font-weight: bold;
+                text-align: center;
+                color: black;
+            }}
+            .usezone-table td {{
+                border: 1px solid #ccc;
+                padding: 10px;
+                text-align: left;
+                background-color: #fff;
+                font-weight: bold !important;  /* ✅ 우선순위 강제 적용 */
+                font-size: 14px !important;      /* ✅ 글자 크기도 강제 적용 */
+            }}
+        </style>
+
+        <table class="usezone-table">
+            <tr>
+                <th colspan="2">용도지역 및 용도지구</th>
+            </tr>
+            <tr>
+                <td>{label1}</td>
+                <td>{joined_values1}</td>
+            </tr>
+            <tr>
+                <td>{label2}</td>
+                <td>{joined_values2}</td>
+            </tr>
+            <tr>
+                <td>{label3}</td>
+                <td>{joined_values3}</td>
+            </tr>
+        </table>
+        """
+
+        # Streamlit에 출력
+        st.markdown(html_table, unsafe_allow_html=True)
+
+def remove_parens_but_keep_exceptions(text, exceptions=None):
+    if exceptions is None:
+        exceptions = ['저촉', '접합', '폭']
+
+    # 함수 내부에서 호출될 치환 함수 (정상 괄호쌍 처리)
+    def replacer(match):
+        inner = match.group(1).strip()
+        if any(exc in inner for exc in exceptions):
+            return f"({inner})"  # 예외 키워드는 그대로 유지
+        else:
+            return ''  # 나머지는 괄호 포함 제거
+
+    # 1. 예외 괄호쌍만 남기고 나머지 괄호쌍 제거
+    text = re.sub(r'\(([^()]*)\)', replacer, text)
+
+    # 2. 닫히지 않은 여는 괄호 제거: 예) (유통산업발전
+    text = re.sub(r'\([^\)]*$', '', text)
+
+    return text
 
 def clear_layer_session(layer):
     for suffix in ["zonename", "blocktype"]:
@@ -474,11 +579,11 @@ def geoUser():
     land_info = st.session_state["land_info"]
 
     posesnSeCodeNm = land_info.get("소유구분", "")
-    nationInsttSeCodeNm = land_info.get("국가기관일 경우 구분", "")
-    ownshipChgCauseCodeNm = land_info.get("소유권변동원인", "")
-    ownshipChgDe = land_info.get("소유권변동일자", "")
+    nationInsttSeCodeNm = land_info.get("국가기관구분", "")
+    ownshipChgCauseCodeNm = land_info.get("소유권 변동원인", "")
+    ownshipChgDe = land_info.get("최근 소유권 변동일자", "")
     cnrsPsnCo = land_info.get("공유인수", "")
-    lastUpdtDt = land_info.get("데이터기준일자", "")
+    lastUpdtDt = land_info.get("데이터 기준일자", "")
 
     html_table = f"""
     <style>
@@ -489,14 +594,17 @@ def geoUser():
         margin: 20px auto;
         font-family: Arial, sans-serif;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        font-size: 14px;
+        border: 2px solid black;
     }}
     th, td {{
         border: 1px solid #ccc;
         padding: 12px 15px;
         text-align:center;
+        font-weight: bold;
     }}
     th {{
-        background-color: #f0f0f0;
+        background-color: #FFA500;
         font-weight: bold;
     }}
     tr:nth-child(even) {{
@@ -514,10 +622,10 @@ def geoUser():
       <tbody>
         <tr><td>소유구분</td><td>{posesnSeCodeNm}</td></tr>
         <tr><td>국가기관구분</td><td>{nationInsttSeCodeNm}</td></tr>
-        <tr><td>소유권변동원인</td><td>{ownshipChgCauseCodeNm}</td></tr>
-        <tr><td>소유권변동일자</td><td>{ownshipChgDe}</td></tr>
+        <tr><td>소유권 변동원인</td><td>{ownshipChgCauseCodeNm}</td></tr>
+        <tr><td>최근 소유권 변동일자</td><td>{ownshipChgDe}</td></tr>
         <tr><td>공유인수</td><td>{cnrsPsnCo}</td></tr>
-        <tr><td>데이터기준일자</td><td>{lastUpdtDt}</td></tr>
+        <tr><td>데이터 기준일자</td><td>{lastUpdtDt}</td></tr>
       </tbody>
     </table>
     """
@@ -880,7 +988,7 @@ def areaPermission():
             filtered_df = filtered_df[filtered_df['토지이용명'].str.contains(search_term.strip(), na=False)]
 
         # ✅ HTML 테이블 시작
-        table_html = "<table style='width:100%; border-collapse: collapse; font-size:14px;'>"
+        table_html = "<table style='width:100%; border-collapse: collapse; font-size:14px; border: 2px solid black;'>"
 
         # ✅ 헤더 생성
         table_html += "<thead><tr>"
@@ -1092,7 +1200,7 @@ def spaceIndex():
                     text-align: center;
                     padding: 8px;
                     color: black;
-                    font-size: 16px;
+                    font-size: 14px;
                     font-weight: bold;
                 }}
                 table.custom-table tr:nth-child(even) {{
