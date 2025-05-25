@@ -19,3 +19,6 @@ pingouin
 jupyterlab
 PyMuPDF
 openpyxl==3.1.5
+requests
+Pillow
+streamlit-autorefresh
