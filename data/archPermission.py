@@ -595,10 +595,10 @@ def geoParams():
                 border-collapse: collapse;
                 width: 100%;
                 font-size: 14px;
-                border: 2px solid black;
+                border: 1px solid black;
             }}
             .usezone-table th {{
-                background-color: #FFA500;
+                background-color: #F4F4F4;
                 font-weight: bold;
                 text-align: center;
                 color: black;
@@ -685,7 +685,7 @@ def geoUser():
         font-family: Arial, sans-serif;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         font-size: 14px;
-        border: 2px solid black;
+        border: 1px solid black;
     }}
     th, td {{
         border: 1px solid #ccc;
@@ -694,7 +694,7 @@ def geoUser():
         font-weight: bold;
     }}
     th {{
-        background-color: #FFA500;
+        background-color: #F4F4F4;
         font-weight: bold;
     }}
     tr:nth-child(even) {{
@@ -790,7 +790,7 @@ def geoData():
                 <table style="border-collapse: collapse; width: 100%; font-size: 14px;">
                     <thead>
                         <tr style="background-color: #E0ECFF;">
-                            <th colspan="2" style="border: 1px solid #ccc; padding: 12px; background:orange; text-align: center; font-size: 14px;">
+                            <th colspan="2" style="border: 1px solid #ccc; padding: 12px; background:#F4F4F4; text-align: center; font-size: 14px;">
                                 {zonename} 정보
                             </th>
                         </tr>
@@ -1114,16 +1114,16 @@ def areaPermission():
             filtered_df = filtered_df[filtered_df['토지이용명'].str.contains(search_term.strip(), na=False)]
 
         # ✅ HTML 테이블 시작
-        table_html = "<table style='width:100%; border-collapse: collapse; font-size:14px; border: 2px solid black;'>"
+        table_html = "<table style='width:100%; border-collapse: collapse; font-size:14px; border: 1px solid black;'>"
 
         # ✅ 헤더 생성
         table_html += "<thead><tr>"
-        table_html += "<th style='border:1px solid #ddd; padding:6px; color:black; background:orange;'>시설군</th>"
-        table_html += "<th style='border:1px solid #ddd; padding:6px; color:black; background:orange;'>세부용도</th>"
+        table_html += "<th style='border:1px solid #ddd; padding:6px; color:black; background:#F4F4F4;'>시설군</th>"
+        table_html += "<th style='border:1px solid #ddd; padding:6px; color:black; background:#F4F4F4;'>세부용도</th>"
         for area in valid_area_list:
-            table_html += f"<th style='border:1px solid #ddd; padding:6px; color:black; background:orange;'>{area} 건축가능</th>"
+            table_html += f"<th style='border:1px solid #ddd; padding:6px; color:black; background:#F4F4F4;'>{area} 건축가능</th>"
 
-        table_html += f"<th style='border:1px solid #ddd; padding:6px; color:black; background:orange;'>건축물 용도 정의</th>"    
+        table_html += f"<th style='border:1px solid #ddd; padding:6px; color:black; background:#F4F4F4;'>건축물 용도 정의</th>"    
         #table_html += f"<th style='border:1px solid #ddd; padding:6px; background:#f0f0f0;'>{base_area} 법률명</th>"
         table_html += "</tr></thead>"
 
@@ -1334,10 +1334,10 @@ def spaceIndex():
                     border-collapse: collapse;
                     width: 100%;
                     font-size: 14px;
-                    border: 2px solid black;
+                    border: 1px solid black;
                 }}
                 table.custom-table th {{
-                    background-color: orange;
+                    background-color: #F4F4F4;
                     color: black;
                     text-align: center;
                     padding: 8px;
@@ -1714,7 +1714,7 @@ def make_html_table_multi(title, items, field_map):
         vertical-align: top;
     }}
     .fixed-wrap-table th {{
-        background-color: orange;
+        background-color: #F4F4F4;
         color: black;
     }}
     </style>

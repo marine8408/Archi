@@ -24,7 +24,7 @@ import plotly.express as px
 
 # ✅ 페이지 전체 설정
 st.set_page_config(
-    page_title="광산구 건축 사이버 상담센터",  # 탭 제목 설정
+    page_title="광산구 건축정보 AI 플랫폼",  # 탭 제목 설정
     page_icon="🏛️",                # (선택사항) 브라우저 탭 아이콘
     layout="wide"                  # (선택사항) 레이아웃 설정
 )
@@ -91,32 +91,72 @@ def main():
 
     # HTML과 CSS로 스타일 지정
     sidebar_title = """
-        <div style='text-align: center; font-size: 18px; color: navy; margin-bottom: 20px; font-weight:bold;'>
-            광산구 건축 사이버 상담센터
-        </div>
-        <hr style='margin-top: 0; margin-bottom: 30px;'>
+    <style>
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+    .blink-blue {
+        animation: blink 1.8s infinite;
+        color: #0000FF;
+        font-weight: bold;
+    }
+    .blink-red {
+        animation: blink 1.8s infinite;
+        color: #FF0000;
+        font-weight: bold;
+    }
+    </style>
+
+    <div style='text-align: center; font-size: 24px; margin-bottom: 20px; font-weight:bold;'>
+        <span class='blink-blue'>광산구</span> 
+        <span class='blink-blue'>건축정보</span> 
+        <span class='blink-red'>AI</span> 
+        <span class='blink-blue'>플랫폼</span>
+    </div>
+    <hr style='margin-top: 0; margin-bottom: 30px;'>
     """
 
     # 사이드바에 삽입
     st.sidebar.markdown(sidebar_title, unsafe_allow_html=True)
 
+    st.sidebar.markdown(
+        """
+        <div style="margin-top: 20px; margin-bottom: 10px;">
+            <p style="color:black; font-size:12px; font-weight:normal; text-align:center;">
+                <br>
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     # 홈으로
     home_form = """
+    <style>
+    .home-button {
+        background: none;
+        border: none;
+        padding: 0;
+        margin-bottom: 10px;
+        color: black;
+        font-size: 20px;
+        text-decoration: none;
+        cursor: pointer;
+        display: block;
+        width: 100%;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    .home-button:hover {
+        color: navy;
+        font-weight: bold;
+        transform: scale(1.05);
+    }
+    </style>
+
     <form action="/" method="get">
-        <button type="submit" style="
-            background: none;
-            border: none;
-            padding: 0;
-            margin-bottom: 10px;
-            color: red;
-            font-size: 20px;
-            font-weight: bold;
-            text-decoration: none;
-            cursor: pointer;
-            display: block;
-            width: 100%;
-            text-align: center;
-        ">🏠 처음 화면으로(뉴스)</button>
+        <button type="submit" class="home-button">처음화면(건축동향)</button>
     </form>
     """
     st.sidebar.markdown(home_form, unsafe_allow_html=True)
@@ -129,6 +169,7 @@ def main():
                 background: none;
                 border: none;
                 padding: 0;
+                margin-top: 10px;
                 margin-bottom: 10px;
                 color: black;
                 cursor: pointer;
@@ -141,32 +182,35 @@ def main():
             .menu-btn:hover {{
                 color: navy;
                 font-weight: bold;
+                transform: scale(1.05);
             }}
         </style>
         <form action="/" method="get">
             <input type="hidden" name="menu" value="{menu_name}">
-            <button class="menu-btn">👉 {menu_name}</button>
+            <button class="menu-btn">{menu_name}</button>
         </form>
         """
         st.sidebar.markdown(menu_form, unsafe_allow_html=True)
 
     st.sidebar.markdown(
         """
-        <hr style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
-        <p style="color:red; font-size:12px; font-weight:normal; text-align:center;">
-            웹사이트에서 제공하는 모든 정보는
-            국가 데이터에서 기계적으로 추출 가공된 정보로서
-            참고용으로만 사용 또는 확인하시기 바랍니다.
-        </p>
+        <div style="margin-top: 200px; margin-bottom: 10px;">
+            <p style="color:red; font-size:12px; font-weight:normal; text-align:center;">
+                웹사이트에서 제공하는 모든 정보는<br>
+                국가 데이터에서 기계적으로 추출·가공된 정보로서<br>
+                참고용으로만 사용 또는 확인하시기 바랍니다.
+            </p>
+        </div>
         """,
         unsafe_allow_html=True
     )
     st.sidebar.markdown(
         """
-        <hr style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
-        <p style="color:black; font-size:14px; font-weight:normal; text-align:center;">
-            광산구 건축 AI 동아리 제공<br>웹사이트 제작 장하종
-        </p>
+        <div style="margin-top: 20px; margin-bottom: 10px;">
+            <p style="color:black; font-size:12px; font-weight:normal; text-align:center;">
+                광산구 건축 AI 동아리 제공<br>웹사이트 제작 장하종
+            </p>
+        </div>
         """,
         unsafe_allow_html=True
     )
@@ -233,7 +277,7 @@ def main():
             st.markdown(
             f"""
             <p style="color:black; font-size:20px; font-weight:bold; text-align:left;">
-                📊 날짜별 키워드 뉴스 건수 통계
+                날짜별 키워드 뉴스 건수 통계
             </p>
             """,
             unsafe_allow_html=True
@@ -252,7 +296,7 @@ def main():
             st.markdown(
             f"""
             <p style="color:black; font-size:20px; font-weight:bold; text-align:left;">
-                📰 키워드별 뉴스 목록
+                키워드별 뉴스 목록
             </p>
             """,
             unsafe_allow_html=True
