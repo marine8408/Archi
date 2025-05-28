@@ -27,8 +27,17 @@ ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 ENV CLOVASTUDIO_API_KEY=""
 ENV APIGW_API_KEY=""
 
-# Streamlit 애플리케이션 실행 (API 키 환경 변수를 전달)
-CMD ["sh", "-c", "CLOVASTUDIO_API_KEY=$CLOVASTUDIO_API_KEY APIGW_API_KEY=$APIGW_API_KEY streamlit run app.py"]
+# 컨테이너가 사용할 포트 문서화
+EXPOSE 8501
+
+# 환경 변수 전달 + Streamlit 실행 (포트·주소 바인딩 포함)
+CMD ["sh", "-c", "\
+  CLOVASTUDIO_API_KEY=$CLOVASTUDIO_API_KEY \
+  APIGW_API_KEY=$APIGW_API_KEY \
+  streamlit run app.py \
+    --server.port=8501 \
+    --server.address=0.0.0.0\
+"]
 
 # 임시
 RUN cat requirements.txt
