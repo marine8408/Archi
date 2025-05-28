@@ -15,6 +15,7 @@ from io import BytesIO
 import xml.etree.ElementTree as ET
 import streamlit.components.v1 as components
 from uuid import uuid4
+import math
 
 # 법령명에서 제X호Y목 파싱
 def extract_ho_mok(text):
@@ -86,7 +87,7 @@ def main():
     st.markdown(
     f"""
     <p style="color:black; font-size:40px; font-weight:normal; font-weight: bold; text-align:center;">
-        건축 규제 정보
+        건축 규제 한눈에
     </p>
     """,
     unsafe_allow_html=True
@@ -138,7 +139,7 @@ def main():
     with tab4:
         archAllowInfo()        
     with tab5:
-        st.write('준비중 입니다.')
+        buildingInfo()
     with tab6:
         geoUser()
 
@@ -181,7 +182,7 @@ def geoParams():
 
      # 결과 확인
     #st.write("🔍 검색 트리거 상태:", st.session_state.search_triggered)
-    col1, col2, col3, col4, col5, col6 = st.columns([1.2, 1, 1, 1, 0.5, 0.5])
+    col1, col2, col3, col4, col5, col6, col7 = st.columns([1.2, 1, 1, 1, 0.3, 0.4, 0.3])
     with col1:
         umd = st.selectbox(
             '법정동',
@@ -244,7 +245,6 @@ def geoParams():
 
             # ✅ 3. 검색 결과는 리런 후 조건문에서 표시
             st.rerun()
-
     with col6:
         st.markdown(
             """
@@ -259,6 +259,44 @@ def geoParams():
             #st.session_state[bonbun_key]   # 변수 초기화
             #st.session_state[bubun_key] = ''
             st.rerun()               # main() 재시작   
+    with col7:
+        st.markdown(
+            """
+            <div style="height: 27px; background-color: white; padding: 10px;">
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # HTML+JS로 파란색 팝업 버튼
+        popup_html = """
+        <script>
+        function openCounsel() {
+            window.open(
+            "/?menu=무료%20건축사%20상담실",
+            "상담신청",
+            "width=800,height=1200,top=100,left=200,scrollbars=yes"
+            );
+        }
+        </script>
+        <button
+        onclick="openCounsel()"
+        style="
+            position: relative;
+            top: -9px;
+            background-color: #1E90FF;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 16px;
+            cursor: pointer;
+        "
+        >
+        상담
+        </button>
+        """
+        components.html(popup_html, height=60)
 
     # 👉 선택값 변경 감지
     if st.session_state.prev_umd != umd or st.session_state.prev_umd2 != umd2:
@@ -635,6 +673,16 @@ def geoParams():
         # Streamlit에 출력
         st.markdown(html_table, unsafe_allow_html=True)
 
+        st.markdown(
+            """
+            <p style="color:red; font-size:14px;">
+            ※ 1. 포함(대지가 속해 있는 지역지구 등 정보 표기, 지역지구 등마다 건축제한 등 조건 확인), 2. 저촉(대지에 도로 등 면적이 포함될 경우 표기), 3. 접합(대지가 도로(소로, 중로, 대로 등) 등에 접할 경우 표기)<br>
+            ※ 건축법 제44조에 따라 건축물은 대지에 2미터 이상 접도 의무(너비가 아닌 접한 길이), 다만, 도시계획도로 등이 아닌 옛 도로 등은 표기되지 않으니 건축법상 도로에 해당되는지 건축사와 별도 상담 확인
+            </p>
+            """,
+            unsafe_allow_html=True
+        )
+
 def remove_parens_but_keep_exceptions(text, exceptions=None):
     if exceptions is None:
         exceptions = ['저촉', '접합', '폭']
@@ -722,6 +770,7 @@ def geoUser():
 
     st.markdown(html_table, unsafe_allow_html=True)
 
+# 산업단지 용지 조회 함수
 def geoData():
     if st.session_state.get("block_other_functions"):
         return  # 🚫 차단된 경우 아무것도 하지 않음
@@ -782,6 +831,10 @@ def geoData():
                     zonename = props.get('zonename', '없음')
                     blocktype = props.get('blocktype', '없음')
 
+               # ——— 국가산업단지인 경우 해당 표 출력 생략 ———
+                if '광주첨단과학산업단지 개발사업' in zonename:
+                   continue
+
                 st.session_state[f'{layer}_zonename'] = zonename
                 st.session_state[f'{layer}_blocktype'] = blocktype
 
@@ -808,9 +861,6 @@ def geoData():
                 </table>
                 """
                 st.markdown(html_table, unsafe_allow_html=True)
-
-                st.write("단지, 지구 등 자세한 정보는 준비중 입니다.")
-
         else:
             st.error(f"{layer} ❌ API 요청 실패: {response.status_code}")
 
@@ -1049,19 +1099,44 @@ def areaPermission():
         area_dict = st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list']
         area_list = [a.strip() for a in list(area_dict.values())]
 
-        target_keywords = ['농공단지', '국가산업단지', '일반산업단지', '도시첨단산업단지', '준산업단지', '제1종지구단위계획구역', '제2종지구단위계획구역', '지구단위계획구역', '택지개발지구']
+        target_keywords = ['농공단지', '국가산업단지', '일반산업단지', '지방산업단지', '도시첨단산업단지', '준산업단지', '제1종지구단위계획구역', '제2종지구단위계획구역', '지구단위계획구역', '택지개발지구']
 
         # 1. 안내 메시지 출력 (조건부)
         found = [kw for kw in target_keywords if kw in area_list]
         if found:
-            st.markdown(
-                f"""
-                <p style="color: red; font-size:14px; font-weight: bold;">
-                ➡️ 해당 지구({', '.join(found)})에 대한 세부 용도 제한 정보는 단지, 구역, 지구별 세부계획 정보에 별도의 제한사항이 있으니 꼭 확인하시기 바랍니다.
-                </p>
-                """,
-                unsafe_allow_html=True
-            )
+            # 1) 국가산업단지 + 상업지역 동시 포함
+            if '국가산업단지' in found and any('상업지역' in a for a in area_list):
+                st.markdown(
+                    """
+                    <p style="color:blue; font-size:14px; font-weight:bold;">
+                    ➡️ 국가산업단지 내 상업지역은 아래 표에 따라 건축가능합니다.
+                    </p>
+                    """,
+                    unsafe_allow_html=True
+                )
+            # 2) 국가산업단지만 있는 경우
+            elif '국가산업단지' in found:
+                st.markdown(
+                    """
+                    <p style="color:red; font-size:14px; font-weight:bold;">
+                    ➡️ 국가산업단지인 경우, 상업지역을 제외한 지역은 국가산업단지 관리기준(주거지역 주택 및 상가 비율 6:4 제한, 층수, 용도 제한 등)과 관련된 제한사항을 반드시 확인하시기 바랍니다.
+                    </p>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+            # 3) 나머지 키워드 안내 (국가산업단지 제외)
+            others = [kw for kw in found if kw != '국가산업단지']
+            if others:
+                st.markdown(
+                    f"""
+                    <p style="color:red; font-size:14px; font-weight:bold;">
+                    ➡️ 해당 지구({', '.join(others)})에 대한 세부 용도 제한 정보는 단지, 구역, 지구별 세부계획 정보에 별도의 제한사항이 있으니 꼭 확인하시기 바랍니다.
+                    </p>
+                    """,
+                    unsafe_allow_html=True
+                )
+
         # 유효 지역 필터링
         valid_area_names = df['용도지역지구명'].dropna().unique().tolist()
         allowed_zones = ['자연경관지구', '자연특화지구', '시가지경관지구', '방재지구', '보호지구', '중요시설물보호지구', '중요시설물보호지구(공항)']
@@ -1206,19 +1281,47 @@ def spaceIndex():
         )
         return  # 🚫 아래 코드 실행 중단
 
-    target_keywords = ['농공단지', '국가산업단지', '일반산업단지', '도시첨단산업단지', '준산업단지', '제1종지구단위계획구역', '제2종지구단위계획구역', '지구단위계획구역', '택지개발지구']
+    target_keywords = [
+        '농공단지', '국가산업단지', '일반산업단지', '지방산업단지',
+        '도시첨단산업단지', '준산업단지', '제1종지구단위계획구역',
+        '제2종지구단위계획구역', '지구단위계획구역', '택지개발지구'
+    ]
 
-    # 1. 안내 메시지 출력 (조건부)
     found = [kw for kw in target_keywords if kw in area_list]
     if found:
-        st.markdown(
-            f"""
-            <p style="color: red; font-size:14px; font-weight: bold;">
-            ➡️ 해당 지구({', '.join(found)})에 대한 세부 용도 제한 정보는 단지, 구역, 지구별 세부계획 정보에 별도의 제한사항이 있으니 꼭 확인하시기 바랍니다.
-            </p>
-            """,
-            unsafe_allow_html=True
-        )
+        # 1) 국가산업단지 + 상업지역 동시 포함
+        if '국가산업단지' in found and any('상업지역' in a for a in area_list):
+            st.markdown(
+                """
+                <p style="color:blue; font-size:14px; font-weight:bold;">
+                ➡️ 국가산업단지 내 상업지역은 아래 표에 따라 건축가능합니다.
+                </p>
+                """,
+                unsafe_allow_html=True
+            )
+        # 2) 국가산업단지만 있는 경우
+        elif '국가산업단지' in found:
+            st.markdown(
+                """
+                <p style="color:red; font-size:14px; font-weight:bold;">
+                ➡️ 국가산업단지인 경우, 상업지역을 제외한 지역은 국가산업단지 관리기준(주거지역 주택 및 상가 비율 6:4 제한, 층수, 용도 제한 등)과 관련된 제한사항을 반드시 확인하시기 바랍니다.
+                </p>
+                """,
+                unsafe_allow_html=True
+            )
+
+        # 3) 나머지 키워드 안내 (국가산업단지 제외)
+        others = [kw for kw in found if kw != '국가산업단지']
+        if others:
+            st.markdown(
+                f"""
+                <p style="color:red; font-size:14px; font-weight:bold;">
+                ➡️ 해당 지구({', '.join(others)})에 대한 세부 용도 제한 정보는
+                단지·구역별 세부계획에 별도 제한사항이 있으니 꼭 확인하세요.
+                </p>
+                """,
+                unsafe_allow_html=True
+            )
 
     building_index1 = {
     '제1종전용주거지역': ('40% 이하', '80% 이하'),   # 키 : 값 () 튜플 변경불가
@@ -1255,8 +1358,9 @@ def spaceIndex():
 
     building_index3 = {    
     '농공단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
-    '국가산업단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
+    #'국가산업단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
     '일반산업단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
+    '지방산업단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
     '도시첨단산업단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
     '준산업단지': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
     '제1종지구단위계획구역': ('지구단위계획 등 제한사항 확인 필요', '지구단위계획 등 제한사항 확인 필요'),
@@ -1421,8 +1525,18 @@ def spaceIndex():
         <table style="width:100%; border-collapse:collapse; text-align:center; font-size:15px;">
             <thead>
                 <tr style="background-color:#f2f2f2;">
-                    <th colspan="3" style="background-color:#e6f2ff; padding:10px; font-size:16px; border:1px solid #ddd;">
-                        🏗️ 건축 가능 면적 및 층수 계산 결과 (대지에 건축물이 없다는 가정)
+                    <th colspan="3" style="
+                        background-color:#f2f2f2;
+                        padding:10px;
+                        font-size:16px;
+                        border:1px solid #ddd;
+                        text-align:center;
+                    ">
+                    건축 가능 면적 및 층수 계산 결과<br>
+                    <span style="font-size:14px; color:red;">
+                        (대지에 건축물과 도로 등 저촉 부분이 없다는 가정(별도 계산 필요), 상업지역은 광주광역시 도시계획조례 별표24의 용도용적제 기준에 따라  
+                        건축물 용도비율 및 용적률, 층수 등의 제한사항을 별도 확인하여야 함)
+                    </span>
                     </th>
                 </tr>
                 <tr style="background-color:#f2f2f2;">
@@ -1617,9 +1731,9 @@ def districtAllow(pdf_path2):
             unsafe_allow_html=True
         )
 
-# 공통 API 호출 함수 (JSON 응답)
+# 건축 인허가 정보 공통 API 호출 함수 (JSON 응답)
 def call_arch_pms_service_json(operation: str):
-    base_url = f"https://apis.data.go.kr/1613000/ArchPmsHubService/{operation}"  # ✅ 수정됨
+    base_url = f"https://apis.data.go.kr/1613000/ArchPmsHubService/{operation}"  
     service_key = "zGvV1ra5mlbgyKU7qBkKuXDzKjjwKbVLsXdiNlXSPX0wCydBKmq6kgSEeAS3jtNYW85Kyp4vSv34AcdCGMu4CA=="
 
     required_keys = ['sigunguCd', 'bjdongCd', 'bun']
@@ -1640,7 +1754,7 @@ def call_arch_pms_service_json(operation: str):
         "platGbCd": platGbCd,
         "bun": bun,
         "ji": ji,
-        "numOfRows": 10,
+        "numOfRows": 30,
         "pageNo": 1,
         "_type": "json"
     }
@@ -1659,7 +1773,31 @@ def make_html_table_multi(title, items, field_map):
     if not items:
         return
 
-    column_count = len(items) + 1  # 항목명 열 포함
+    # ——— 6개 필드가 모두 빈값 or 0 이면 field_map 에서 제거 ———
+    for key in ["platArea", "archArea", "totArea",
+                "vlRatEstmTotArea", "bcRat", "vlRat"]:
+        if key in field_map:
+            remove = True
+            for item in items:
+                raw = item.get(key)
+                # 빈값 또는 문자열 "0", 숫자 0 모두 허용
+                if raw in (None, "", "0", 0):
+                    continue
+                # 숫자로 변환 후 0 체크
+                try:
+                    if float(raw) != 0:
+                        remove = False
+                        break
+                except:
+                    # 비숫자 값이 하나라도 있으면 유지
+                    remove = False
+                    break
+            if remove:
+                field_map.pop(key)
+
+    # ——— 그 다음 column_count, header, rows 계산 ———
+    column_count = len(items) + 1
+    header = "".join(f"<th>정보 {i+1}</th>" for i in range(len(items)))
 
     # 천단위 쉼표 처리할 키 리스트
     number_keys = {'platArea', 'archArea', 'totArea', 'vlRatEstmTotArea',
@@ -1766,7 +1904,8 @@ def archAllowInfo():
             "sumTotArea": "연면적(㎡)",
             "strctCdNm": "구조",
             "mainPurpsCdNm": "용도",
-            "crtnDay": "신고일"
+            "crtnDay": "신고일",
+            "tmpbidPrsvExpDay": "가설건축물 존치 만료일"
         })
     ]
 
@@ -1775,11 +1914,37 @@ def archAllowInfo():
 
         # ✅ 응답 데이터가 존재할 경우에만 처리
         if data:
-            items = (data or {}).get("response", {}).get("body", {}).get("items", {}).get("item")
+            items = (data or {}).get("response", {}) \
+               .get("body", {}).get("items", {}).get("item")
 
             # 단일 dict → 리스트로 변환
             if isinstance(items, dict):
                 items = [items]
+
+            if operation == "getApBasisOulnInfo":
+                # 대지·건축·연면적, 용적률산정연면적, 건폐율, 용적률 전부가 빈값/0인 record 제거
+                numeric_keys = [
+                    "platArea","archArea","totArea",
+                    "vlRatEstmTotArea","bcRat","vlRat"
+                ]
+                filtered = []
+                for it in items:
+                    # 하나라도 0이 아닌 값(or 빈문자·None 아닌 비숫자)이 있으면 남기기
+                    keep = False
+                    for k in numeric_keys:
+                        raw = it.get(k)
+                        if raw in (None, "", 0, "0"):
+                            continue
+                        try:
+                            if float(raw) != 0:
+                                keep = True
+                                break
+                        except:
+                            keep = True
+                            break
+                    if keep:
+                        filtered.append(it)
+                items = filtered
 
             # ✅ 유효한 리스트일 경우 처리
             if isinstance(items, list) and len(items) > 0:
@@ -1791,6 +1956,10 @@ def archAllowInfo():
                 elif operation == "getApTmpBldInfo":
                     items.sort(key=lambda x: x.get("crtnDay", ""), reverse=True)
 
+                # ——— 관리자 비밀번호(플래그) 없으면 '존치 만료일' 컬럼 제거 ———
+                if operation == "getApTmpBldInfo" and not st.session_state.get("is_admin", False):
+                    field_map.pop("tmpbidPrsvExpDay", None)
+
                 make_html_table_multi(title, items, field_map)
             else:
                 # items가 비어 있으면 메시지 출력
@@ -1799,3 +1968,620 @@ def archAllowInfo():
         # ✅ 응답 자체가 없으면 아무 것도 출력하지 않음
         else:
             pass  # 또는 st.info("응답 없음")
+
+# 건축물 대장 정보 공통 API 호출 함수 (JSON 응답)
+def call_Bld_Rgst_service_json(operation: str, pageNo: int = 1, numOfRows: int = 30):
+    import requests
+    import streamlit as st
+
+    base_url = f"https://apis.data.go.kr/1613000/BldRgstHubService/{operation}"
+    service_key = "zGvV1ra5mlbgyKU7qBkKuXDzKjjwKbVLsXdiNlXSPX0wCydBKmq6kgSEeAS3jtNYW85Kyp4vSv34AcdCGMu4CA=="
+
+    required_keys = ['sigunguCd', 'bjdongCd', 'bun']
+    if any(k not in st.session_state for k in required_keys):
+        #st.error("❗ 주소 정보가 누락되었습니다. 먼저 주소를 입력해 주세요.")
+        return None
+
+    sigunguCd = st.session_state['sigunguCd']
+    bjdongCd = st.session_state['bjdongCd']
+    bun = st.session_state.get('bun', '').zfill(4)
+    ji = st.session_state.get('ji', '').zfill(4)
+    platGbCd = '1' if st.session_state.get('san') else '0'
+
+    params = {
+        "serviceKey": service_key,
+        "sigunguCd": sigunguCd,
+        "bjdongCd": bjdongCd,
+        "platGbCd": platGbCd,
+        "bun": bun,
+        "ji": ji,
+        "numOfRows": numOfRows,
+        "pageNo": pageNo,
+        "_type": "json"
+    }
+
+    try:
+        response = requests.get(base_url, params=params)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            st.error(f"❗ {operation} API 호출 실패: HTTP {response.status_code}")
+            st.code(response.text)
+            return None
+    except Exception as e:
+        st.error(f"❗ API 요청 중 오류 발생: {e}")
+        return None
+
+def extract_main_type(value: str) -> str:
+    """
+    '표제부 (주건축물)' → '주건축물' 추출
+    """
+    if not isinstance(value, str):
+        return "기타"
+
+    match = re.search(r'\((.*?)\)', value)
+    return match.group(1).strip() if match else "기타"
+
+def regstr_priority(value: str) -> int:
+    """
+    총괄표제부(-1) < 주건축물(0) < 부속건축물(1) < 기타(2)
+    """
+    if "총괄" in value:
+        return -1
+    main_type = extract_main_type(value)
+    return {"주건축물": 0, "부속건축물": 1}.get(main_type, 2)
+
+def dong_sort_key_asc(dongNm):
+    if not dongNm or not isinstance(dongNm, str) or dongNm.strip() == "":
+        return (3, '', 0)
+
+    dongNm = dongNm.strip()
+
+    # 숫자 시작 (예: '101동')
+    match = re.match(r'(\d+)', dongNm)
+    if match:
+        return (0, '', int(match.group(1)))
+
+    # 영문 시작 (예: 'A동')
+    if len(dongNm) > 0 and re.match(r'[a-zA-Z]', dongNm[0]):
+        return (1, dongNm.upper(), 0)
+
+    # 한글 기타 (예: '가동', '중앙동' 등)
+    return (2, dongNm, 0)
+
+def building_sort_key(item: dict):
+    """
+    최종 정렬 키: 대장종류 → 건물동명 오름차순
+    """
+    regstr = item.get("regstrKindCdNm", "")
+    dong = item.get("dongNm", "")
+    return (regstr_priority(regstr), dong_sort_key_asc(dong))
+
+def sort_title_info_list(title_info_list):
+    if not isinstance(title_info_list, list):
+        return []
+
+    # 주건축물/부속건축물 분리 및 정렬
+    def is_main(x): return extract_main_type(x.get("regstrKindCdNm", "")) == "주건축물"
+    def is_sub(x): return extract_main_type(x.get("regstrKindCdNm", "")) == "부속건축물"
+
+    main_items = sorted([x for x in title_info_list if is_main(x)],
+                        key=lambda x: dong_sort_key_asc(x.get("dongNm", "")))
+    sub_items = sorted([x for x in title_info_list if is_sub(x)],
+                        key=lambda x: dong_sort_key_asc(x.get("dongNm", "")))
+
+    return main_items + sub_items
+
+# 건축물대장 HTML 테이블 생성 (그룹화된 헤더 포함)
+def make_html_table_grouped(title, items, field_map, group_headers):
+    if not items:
+        return
+
+    number_keys = {
+        "platArea", "archArea", "totArea", "vlRatEstmTotArea", "area",
+        "heit", "bcRat", "vlRat",
+        "indrMechUtcnt", "oudrMechUtcnt", "indrAutoUtcnt", "oudrAutoUtcnt"
+    }
+
+    column_count = len(field_map) + 1  # 항목명 + 항목 개수
+
+    # ✅ 제목 조건부 변경
+    warning_text = ""
+    if title == "건축물대장 표제부":
+        first_item = items[0]
+        if first_item.get("regstrKindCdNm") == "일반건축물":
+            warning_text = '<p style="color:red; font-weight:bold;"> </p>'
+
+    # ✅ 그룹 헤더
+    group_row = "<tr><th></th>"
+    for group_name, group_keys in group_headers.items():
+        colspan = sum(1 for key in group_keys if key in field_map)
+        if colspan > 0:
+            group_row += f'<th colspan="{colspan}">{group_name}</th>'
+    group_row += "</tr>"
+
+    # ✅ 항목명 행
+    field_header_row = "<tr><th>항목명</th>"
+    for group_keys in group_headers.values():
+        for key in group_keys:
+            if key in field_map:
+                field_header_row += f"<th>{field_map[key]}</th>"
+    field_header_row += "</tr>"
+
+    # ✅ 데이터 행
+    data_rows = ""
+    for i, item in enumerate(items):
+        row = f"<tr><td>정보 {i+1}</td>"
+        for group_keys in group_headers.values():
+            for key in group_keys:
+                if key not in field_map:
+                    continue
+                raw_value = item.get(key, "")
+                if key in number_keys:
+                    try:
+                        value = f"{float(raw_value):,.2f}".rstrip("0").rstrip(".")
+                    except:
+                        value = str(raw_value)
+                else:
+                    value = str(raw_value).replace("\n", "<br>")
+                row += f"<td>{value}</td>"
+        row += "</tr>"
+        data_rows += row
+
+    # ✅ HTML 생성 (이제 안전하게)
+    html_code = f"""
+    <style>
+    .scroll-wrap {{
+        overflow-x: auto;
+        border: 0px solid #333;
+        margin-bottom: 1rem;
+    }}
+    .fixed-wrap-table {{
+        border-collapse: collapse;
+        table-layout: fixed;
+        min-width: 800px;
+        width: auto;
+        font-size: 14px;
+        font-weight: bold;
+    }}
+    .fixed-wrap-table th,
+    .fixed-wrap-table td {{
+        border: 1px solid #ddd;
+        padding: 8px;
+        min-width: 120px;
+        text-align: center;
+        vertical-align: top;
+        word-break: break-word;
+    }}
+    .fixed-wrap-table th {{
+        background-color: #F4F4F4;
+        font-weight: bold;
+    }}
+    </style>
+
+    {warning_text}
+    <div class="scroll-wrap">
+      <table class="fixed-wrap-table">
+        <thead>
+        <tr><th colspan="{column_count}">{title}</th></tr>
+        {field_header_row}
+        </thead>
+        <tbody>
+          {data_rows}
+        </tbody>
+      </table>
+    </div>
+    """
+
+    st.markdown(html_code, unsafe_allow_html=True)
+
+def render_floor_outline(all_flr_items, title_info_list):
+    if not isinstance(all_flr_items, list) or not all_flr_items:
+        st.markdown('<p style="color:red; font-weight:bold;">❗ 층별개요 정보가 없습니다.</p>', unsafe_allow_html=True)
+        return
+
+    # ✅ 선택 가능한 동명 목록
+    dong_options = [
+        f"{item.get('dongNm', '') or '(미지정)'} - {item.get('bldNm', '') or '-'}"
+        for item in title_info_list
+    ]
+
+    # ✅ 선택 위젯 (초기 선택은 0)
+    selected_index = st.radio("층별개요 조회 대상 선택", options=range(len(dong_options)),
+                               format_func=lambda i: dong_options[i], index=0)
+
+    selected_dongNm = title_info_list[selected_index].get("dongNm", "")
+
+    # ✅ 필터링된 층별개요 리스트
+    filtered_items = [
+        item for item in all_flr_items
+        if item.get("dongNm", "").strip() == selected_dongNm.strip()
+    ]
+
+    # ✅ 출력 필드 매핑
+    field_map_floor = [
+        ("층별개요", {
+            "flrGbCdNm": "구분",
+            "flrNoNm": "층별",
+            "etcStrct": "구조",
+            "mainPurpsCdNm": "용도",
+            "etcPurps": "기타용도",
+            "area": "면적(㎡)"
+        })
+    ]
+    field_map = {}
+    group_headers = {}
+    for group_name, group_fields in field_map_floor:
+        field_map.update(group_fields)
+        group_headers[group_name] = list(group_fields.keys())
+
+    # ✅ 테이블 출력
+    if filtered_items:
+        make_html_table_grouped(f"층별개요 - {selected_dongNm}", filtered_items, field_map, group_headers)
+    else:
+        st.info(f"❗ 선택된 동({selected_dongNm})에 대한 층별개요 정보가 없습니다.")
+
+def render_dual_building_header(recap_info, title_info_list):
+    # ✅ 리스트 유효성 검증
+    if not isinstance(title_info_list, list) or not title_info_list:
+        return
+
+    # ✅ 총괄표제부 정보 추출
+    g_regstr = recap_info.get("regstrKindCdNm", "").strip() if recap_info else ""
+    g_bldNm = recap_info.get("bldNm", "").strip() if recap_info else "-"
+    g_purps = recap_info.get("mainPurpsCdNm", "").strip() if recap_info else "-"
+
+    # ✅ 총괄표제부 행 생성
+    if g_regstr:
+        g_row = (
+            f"<tr>"
+            f"<td class='red-text'>{g_regstr}</td>"
+            f"<td class='red-text'>{g_bldNm}</td>"
+            f"<td class='red-text'>-</td>"
+            f"<td class='red-text'>{g_purps}</td>"
+            f"</tr>"
+        )
+        row_count = 1
+    else:
+        g_row = ""
+        row_count = 0
+
+    # ✅ 일반 표제부 필터링
+    filtered_list = [
+        item for item in title_info_list
+        if "총괄" not in item.get("regstrKindCdNm", "")
+    ]
+
+    # ✅ 표제부 행 생성
+    title_rows = ""
+    for title_info in filtered_list:
+        regstr = str(title_info.get("regstrKindCdNm", "")).strip() or "-"
+        mainAtch = str(title_info.get("mainAtchGbCdNm", "")).strip() or "-"
+        bldNm = str(title_info.get("bldNm", "")).strip() or "-"
+        dongNm = str(title_info.get("dongNm", "")).strip() or "-"
+        purps = str(title_info.get("mainPurpsCdNm", "")).strip()
+        etcPurps = str(title_info.get("etcPurps", "")).strip()
+
+        purps_combined = f"{purps}, {etcPurps}" if etcPurps and etcPurps != purps else purps or "-"
+
+        title_rows += (
+            f"<tr>"
+            f"<td class='red-text'>{regstr} ({mainAtch})</td>"
+            f"<td class='red-text'>{bldNm}</td>"
+            f"<td class='red-text'>{dongNm}</td>"
+            f"<td class='red-text'>{purps_combined}</td>"
+            f"</tr>"
+        )
+        row_count += 1
+
+    # ✅ 상단 정보용 plat/bylots 지정 (리스트 비었을 경우도 안전)
+    if title_info_list and isinstance(title_info_list, list):
+        plat = str(title_info_list[0].get("platPlc", "")).strip() or "-"
+        bylots = str(title_info_list[0].get("bylotCnt", "")).strip() or "-"
+    else:
+        plat = "-"
+        bylots = "-"
+
+    # ✅ 높이 계산
+    row_height = 50
+    base_height = 180
+    total_height = base_height + (row_height * row_count)
+
+    # ✅ HTML 생성
+    html = f"""
+    <style>
+    .bld-table {{
+        border-collapse: collapse;
+        font-size: 14px;
+        font-weight: bold;
+        width: 100%;
+        margin-bottom: 1rem;
+        table-layout: auto;
+    }}
+    .bld-table th, .bld-table td {{
+        border: 1px solid #999;
+        padding: 6px 10px;
+        text-align: center;
+        vertical-align: middle;
+        word-break: keep-all;
+        white-space: normal;
+    }}
+    .bld-table th {{
+        background-color: #f9f9f9;
+        font-weight: bold;
+    }}
+    .red-text {{
+        color: black;
+        font-weight: normal;
+    }}
+    </style>
+
+    <!-- 상단 표 -->
+    <table class="bld-table">
+      <thead>
+        <tr><th colspan="2">건축물대장 정보</th></tr>
+        <tr><th>소재지</th><th>외필지수</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="red-text">{plat}</td><td class="red-text">{bylots}</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 하단 표 -->
+    <table class="bld-table">
+      <thead>
+        <tr>
+          <th>대장종류</th>
+          <th>건물명</th>
+          <th>건물동명</th>
+          <th>주용도</th>
+        </tr>
+      </thead>
+      <tbody>
+        {g_row}
+        {title_rows}
+      </tbody>
+    </table>
+    """
+
+    # ✅ 출력
+    components.html(html, height=total_height)
+
+def buildingInfo():
+    if st.session_state.get("block_other_functions"):
+        return
+
+    field_map_title = [
+        ("기본정보", {
+            "regstrKindCdNm": "대장종류",
+            "mainAtchGbCdNm": "주건축물구분",
+            "bldNm": "건물명",
+            "dongNm": "건물동명",
+            "mainPurpsCdNm": "주용도",
+            "etcPurps": "기타용도"
+        }),
+        ("면적정보", {
+            "platArea": "대지면적(㎡)",
+            "archArea": "건축면적(㎡)",
+            "totArea": "연면적(㎡)",
+            "vlRatEstmTotArea": "용적률산정 연면적(㎡)",
+            "bcRat": "건폐율(%)",
+            "vlRat": "용적률(%)"
+        }),
+        ("건축개요", {
+            "etcStrct": "구조",
+            "grndFlrCnt": "지상층수",
+            "ugrndFlrCnt": "지하층수",
+            "heit": "높이(m)"
+        }),
+        ("주차대수", {
+            "indrMechUtcnt": "기계식주차(내부)",
+            "oudrMechUtcnt": "기계식주차(외부)",
+            "indrAutoUtcnt": "자주식주차(내부)",
+            "oudrAutoUtcnt": "자주식주차(외부)"
+        }),
+        ("인허가정보", {
+            "pmsnoGbCdNm": "허가구분",
+            "pmsDay": "허가일자",
+            "stcnsDay": "착공일자",
+            "useAprDay": "사용승인일자"
+        })
+    ]
+
+    recap_info = call_Bld_Rgst_service_json("getBrRecapTitleInfo")
+    title_data = call_Bld_Rgst_service_json("getBrTitleInfo")
+
+    title_info_list = title_data.get("response", {}).get("body", {}).get("items", {}).get("item", []) if title_data else []
+    if isinstance(title_info_list, dict):
+        title_info_list = [title_info_list]
+
+    if not title_info_list:
+        #st.warning("❗ 표제부 정보가 없습니다.")
+        return
+
+    st.markdown(
+        f"""
+        <p style="color:red; font-size:14px; font-weight:normal;">
+            ※ 건축물대장은 총괄표제부(하나의 대지에 2 이상의 건축물(부속건축물 제외)이 있는 경우)<br> 
+            -> 표제부(「집합건물의 소유 및 관리에 관한 법률」에 따라 1동의 건물이 구조상 구분되어 여러 개의 부분으로 독립된 건물로서 사용되어 각각의 소유권이 있는 건축물) 또는 일반건축물(집합건축물 외 건축물)<br> 
+            -> 층별개요(건축물 동별 상세 층별 현황 - 동별 선택 필수) 순서로 제공됩니다. 집합건축물 전유부 보기 기능은 제공하지 않으니 참고하시기 바랍니다.
+        </p>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 총괄표제부 추가 (선택적)
+    recap_item = None
+    if recap_info:
+        recap_item = recap_info.get("response", {}).get("body", {}).get("items", {}).get("item")
+        if recap_item:
+            if isinstance(recap_item, list):
+                recap_item = recap_item[0]
+            recap_item["regstrKindCdNm"]
+            title_info_list.insert(0, recap_item)
+
+    title_info_list.sort(key=building_sort_key)
+
+    # ——— 천단위 콤마 표시용 숫자 키 세트 ———
+    number_keys = {
+        "platArea", "archArea", "totArea", "vlRatEstmTotArea",
+        "bcRat", "vlRat", "grndFlrCnt", "ugrndFlrCnt", "heit",
+        "indrMechUtcnt", "oudrMechUtcnt", "indrAutoUtcnt", "oudrAutoUtcnt"
+    }
+
+    # ✅ 요약 테이블 호출 (총괄포함 요약표 렌더링)
+    preview_list = [i for i in title_info_list if "총괄" not in i.get("regstrKindCdNm", "")]
+    if preview_list:
+        render_dual_building_header(recap_item if recap_info else None, preview_list)
+
+    flat_fields = {k: v for group in field_map_title for k, v in group[1].items()}
+    dong_labels = [f"{i.get('dongNm', '') or '-'} - {i.get('bldNm', '') or '-'}" for i in title_info_list]
+
+    if not dong_labels:
+        st.warning("❗ 동 정보가 없습니다.")
+        return
+
+    if "selected_dong_index" not in st.session_state:
+        st.session_state.selected_dong_index = 0
+
+    if st.session_state.selected_dong_index >= len(dong_labels):
+        st.session_state.selected_dong_index = 0
+
+    if len(dong_labels) > 1:
+        # 1) 원하는 스타일의 레이블을 HTML로 출력
+        st.markdown(
+            """
+            <div style="
+                font-size:18px;
+                color:red;
+                font-weight: bold;
+                margin-bottom:4px;
+            ">
+                동 층별개요 보기(열람하고 싶은 동을 선택하면 표 하단에 층별현황 표가 별도 출력)
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            """
+            <div style="
+                font-size:12px;
+                color:red;
+                margin-bottom:4px;
+            ">
+                 ※ 현재 웹사이트 디자인 구조로 인해 첫 1회 클릭시 분류 탭이 초기화 되는 문제가 있습니다. 향후 디자인 개편을 통해 수정예정이오니 불편하시더라도 양해바랍니다.
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        # 2) 실제 라디오 버튼에는 빈 문자열 레이블
+        selected_radio = st.radio(
+            "",
+            options=range(len(dong_labels)),
+            format_func=lambda i: dong_labels[i],
+            horizontal=True,
+            index=st.session_state.selected_dong_index
+        )
+        if selected_radio != st.session_state.selected_dong_index:
+            st.session_state.selected_dong_index = selected_radio
+            st.rerun()
+
+    selected_index = st.session_state.selected_dong_index
+    selected_item = title_info_list[selected_index]
+
+    # 표제부 테이블 출력
+    table_html = """
+    <style>
+    .bld-table-html {
+        border-collapse: collapse;
+        width: 100%;
+        table-layout: auto;
+        font-size: 14px;
+        font-weight: bold;
+    }
+    .bld-table-html th, .bld-table-html td {
+        border: 1px solid #ccc;
+        padding: 6px 10px;
+        text-align: center;
+        vertical-align: middle;
+        white-space: nowrap;
+    }
+    .bld-table-html th {
+        background-color: #f0f0f0;
+    }
+    </style>
+    <div class=\"scroll-wrapper\">
+    <table class=\"bld-table-html\">
+        <thead>
+            <tr><th>선택</th>""" + ''.join(f"<th>{flat_fields[k]}</th>" for k in flat_fields) + """</tr>
+        </thead>
+        <tbody>
+    """
+    for idx, item in enumerate(title_info_list):
+        checked = "✔" if idx == selected_index else ""
+        table_html += f"<tr><td>{checked}</td>"
+        for key in flat_fields:
+            raw = item.get(key, "")
+            if key in number_keys and raw not in (None, "", "-"):
+                try:
+                    num = float(raw)
+                    # 소수점 최대 2자리, 불필요한 0·소수 제거
+                    val = f"{num:,.2f}".rstrip("0").rstrip(".")
+                except:
+                    val = str(raw)
+            else:
+                val = raw or "-"
+            table_html += f"<td>{val}</td>"
+        table_html += "</tr>"
+    table_html += "</tbody></table></div>"
+    st.markdown(table_html, unsafe_allow_html=True)
+
+    # 층별개요 API 호출 및 출력
+    all_flr_items = []
+    base_data = call_Bld_Rgst_service_json("getBrFlrOulnInfo", pageNo=1)
+    if base_data:
+        body = base_data.get("response", {}).get("body", {})
+        total = int(body.get("totalCount", 0))
+        num = int(body.get("numOfRows", 30))
+        pages = math.ceil(total / num)
+
+        for p in range(1, pages + 1):
+            page_data = call_Bld_Rgst_service_json("getBrFlrOulnInfo", pageNo=p)
+            items = page_data.get("response", {}).get("body", {}).get("items", {}).get("item")
+            if isinstance(items, dict):
+                all_flr_items.append(items)
+            elif isinstance(items, list):
+                all_flr_items.extend(items)
+
+    clicked_dong = selected_item.get("dongNm", "")
+
+    if clicked_dong and all_flr_items:
+        filtered = [i for i in all_flr_items if i.get("dongNm", "").strip() == clicked_dong.strip()]
+
+        def flr_sort_key(item):
+            flr = item.get("flrNoNm", "").strip()
+            match = re.match(r"(-?\d+)", flr.replace("B", "-").replace("지하", "-").replace("지상", ""))
+            return int(match.group(1)) if match else float('inf')
+
+        filtered.sort(key=flr_sort_key)
+
+        field_map_floor = [
+            ("층별개요", {
+                "flrGbCdNm": "구분",
+                "flrNoNm": "층별",
+                "etcStrct": "구조",
+                "mainPurpsCdNm": "용도",
+                "etcPurps": "기타용도",
+                "area": "면적(㎡)"
+            })
+        ]
+        field_map = {}
+        group_headers = {}
+        for group_name, group_fields in field_map_floor:
+            field_map.update(group_fields)
+            group_headers[group_name] = list(group_fields.keys())
+
+        if filtered:
+            make_html_table_grouped(f"층별개요 - {clicked_dong}", filtered, field_map, group_headers)
+        else:
+            st.info(f"❗ 선택된 동({clicked_dong})에 대한 층별개요 정보가 없습니다.")
