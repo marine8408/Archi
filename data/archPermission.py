@@ -16,6 +16,7 @@ import xml.etree.ElementTree as ET
 import streamlit.components.v1 as components
 from uuid import uuid4
 import math
+from PIL import Image, ImageDraw
 
 # 법령명에서 제X호Y목 파싱
 def extract_ho_mok(text):
@@ -103,7 +104,8 @@ def main():
     #buildingIndex()
     geoParams()
     geoData()
-    
+    spaceMap()
+
     # ✅ 3개 탭 생성
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["건축행위 제한", "건축규모 제한", "기타 제한", "인허가 정보", "건축물대장", "토지 소유정보"])
 
@@ -2585,3 +2587,59 @@ def buildingInfo():
             make_html_table_grouped(f"층별개요 - {clicked_dong}", filtered, field_map, group_headers)
         else:
             st.info(f"❗ 선택된 동({clicked_dong})에 대한 층별개요 정보가 없습니다.")
+
+# 연속지적도
+def spaceMap():
+    if st.session_state.get("block_other_functions"):
+        return
+    if 'vworld_x' not in st.session_state or 'vworld_y' not in st.session_state:
+        return
+
+    lon = float(st.session_state['vworld_x'])
+    lat = float(st.session_state['vworld_y'])
+
+    # bbox 생성 (간단히 동일)
+    delta = 0.001
+    xmin, ymin = lon - delta, lat - delta
+    xmax, ymax = lon + delta, lat + delta
+    bbox = f"{ymin},{xmin},{ymax},{xmax}"
+
+    # WMS 호출
+    url = "http://api.vworld.kr/ned/wms/CtnlgsSpceService"
+    params = {
+        "key":       "12C86633-0613-3EC6-A8EF-0D8D474C8608",
+        "domain":    "https://광산에이아이.com",
+        "layers":    "dt_d002",
+        "crs":       "EPSG:4326",
+        "bbox":      bbox,
+        "width":     "915",
+        "height":    "700",
+        "format":    "image/png",
+        "transparent": "false",
+        "bgcolor":   "0xFFFFFF",
+        "exceptions": "blank"
+    }
+    r = requests.get(url, params=params, timeout=10)
+    if r.status_code != 200 or len(r.content) == 0:
+        st.error("연속지적도 조회 실패 또는 빈 이미지 반환")
+        return
+
+    # PIL로 변환 + 마커 그리기
+    img = Image.open(io.BytesIO(r.content))
+    w, h = img.size
+    dx, dy = (xmax - xmin), (ymax - ymin)
+    x_pct = (lon - xmin) / dx if dx != 0 else 0.5
+    y_pct = (ymax - lat) / dy if dy != 0 else 0.5
+    x_px, y_px = int(x_pct * w), int(y_pct * h)
+
+    draw = ImageDraw.Draw(img)
+    r_ = 6
+    draw.ellipse(
+        [(x_px - r_, y_px - r_), (x_px + r_, y_px + r_)],
+        outline="red", width=2
+    )
+
+    # ─────────────────────
+    # Streamlit Expander 사용
+    with st.expander("연속지적도 보기/숨기기", expanded=False):
+        st.image(img, caption="검색 위치 마커 포함", use_container_width=True)
