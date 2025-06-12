@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import os
 import pandas as pd
 import sys
+import time
 
 LOG_DIR = "logs"
 LOG_FILE = os.path.join(LOG_DIR, "counsel_log.xlsx")
@@ -39,7 +40,7 @@ def save_to_excel(entry):
         df = pd.read_excel(LOG_FILE, dtype=str)
         df["상담일시"] = df["상담일시"].astype(str).str.strip()
     else:
-        df = pd.DataFrame(columns=["신청일시", "이름", "연락처", "상담일시", "상담유형", "내용"])
+        df = pd.DataFrame(columns=["신청일시", "이름", "일회용 비밀번호", "상담일시", "상담유형", "내용"])
     df.loc[len(df)] = entry
     df.to_excel(LOG_FILE, index=False)
 
@@ -60,7 +61,7 @@ def delete_existing_entry(name, contact, consult_datetime):
     match = (
         df["이름"].astype(str).str.strip().str.lower() == name.strip().lower()
     ) & (
-        df["연락처"].astype(str).str.strip() == contact.strip()
+        df["일회용 비밀번호"].astype(str).str.strip() == contact.strip()
     ) & (
         df["상담일시"] == consult_datetime
     )
@@ -147,7 +148,7 @@ def main():
         )
 
         contact = st.text_input(
-            "연락처", placeholder="010-1234-5678",
+            "상담 일회용 비밀번호 (신청 조회 및 삭제 시 필요)", placeholder="1234",
             value=st.session_state.get("contact_input", ""),
             key="contact_input"
         )
@@ -184,6 +185,18 @@ def main():
             key="content_input"
         )
 
+        st.markdown("""
+            <style>
+                .block-container { padding-top: 1rem !important; }
+            </style>
+        """, unsafe_allow_html=True)
+
+        st.markdown("""
+        <p style="color:black; font-size:14px; text-align:center;">
+            광산구청 상담 문의  ☏ 062-960-6859
+        </p>
+        """, unsafe_allow_html=True)
+
         # ✅ 신청 버튼
         if st.button("✅ 상담 신청하기"):
             if not name or not contact or not content:
@@ -203,6 +216,7 @@ def main():
                 ]
                 save_to_excel(entry)
                 st.success("✅ 상담 신청이 완료되었습니다.")
+                time.sleep(2)  # 2초 정도 기다려서 사용자에게 메시지를 보여줌
 
                 # 🔄 상태 초기화
                 for k in ["name_input", "contact_input", "content_input", "time_input", "category_input"]:
@@ -215,7 +229,7 @@ def main():
     with tab2:
         st.info("기존에 신청한 상담 정보를 정확히 입력한 후 확인을 눌러 주세요.")
         del_name = st.text_input("신청자 성함")
-        del_contact = st.text_input("신청자 연락처")
+        del_contact = st.text_input("신청자 일회용 비밀번호")
 
         if 'consult_options' not in st.session_state:
             st.session_state.consult_options = []
@@ -226,7 +240,7 @@ def main():
                 df["상담일시"] = df["상담일시"].astype(str).str.strip()
                 df_filtered = df[
                     (df["이름"].astype(str).str.strip().str.lower() == del_name.strip().lower()) &
-                    (df["연락처"].astype(str).str.strip() == del_contact.strip())
+                    (df["일회용 비밀번호"].astype(str).str.strip() == del_contact.strip())
                 ]
                 if not df_filtered.empty:
                     st.session_state.consult_options = df_filtered["상담일시"].tolist()
