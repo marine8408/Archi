@@ -81,10 +81,49 @@ def render_sidebar():
         """
         st.sidebar.markdown(form, unsafe_allow_html=True)
 
+
+    # 마우스 hover 작동 + 밑줄 제거 + 색상 확정
+    menu_btn_style2 = """
+    <style>
+    .menu-btn2 {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 10px 0;
+        color: black !important;
+        cursor: pointer;
+        font-size: 14px;
+        display: block;
+        width: 100%;
+        text-align: center;
+        transition: all 0.3s;
+        text-decoration: none !important;
+    }
+    .menu-btn2:hover {
+        color: navy !important;
+        font-weight: bold;
+        transform: scale(1.05);
+        text-decoration: none !important;
+    }
+    </style>
+    """
+    st.sidebar.markdown(menu_btn_style2, unsafe_allow_html=True)
+
+    # 외부 링크 섹션
+    external_link_html = """
+    <div style='text-align:center; margin-top:150px; font-size:14px;'>
+        <div style='font-weight:normal; font-size:14px; margin-bottom:10px;'>외부사이트 연결</div>
+        <a href="https://www.gwangsan.go.kr" target="_blank" class="menu-btn2">광산구청</a>
+        <a href="https://www.eais.go.kr" target="_blank" class="menu-btn2">건축행정시스템(세움터)</a>
+        <a href="https://www.eum.go.kr" target="_blank" class="menu-btn2">토지이음</a>
+    </div>
+    """
+    st.sidebar.markdown(external_link_html, unsafe_allow_html=True)
+
     # 푸터 (여러 개 사용 가능)
     footers = [
         """
-        <div style='margin-top:200px;text-align:center;font-size:12px;color:red;'>
+        <div style='margin-top:30px;text-align:center;font-size:12px;color:red;'>
           웹사이트 정보는 국가 데이터망에서<br>
           추출 가공된 자료로 참고용으로만 사용가능
         </div>

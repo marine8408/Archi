@@ -68,7 +68,33 @@ def parse_percent(value):
     except:
         return None
 
-# main 함수
+def render_tabs():
+    tab_labels = [
+        "건축행위 제한", "건축규모 제한", "기타 제한",
+        "인허가 정보", "건축물대장", "토지 소유정보"
+    ]
+    # 1) 처음엔 0번 탭 선택
+    if "current_tab" not in st.session_state:
+        st.session_state.current_tab = 0
+
+    # 2) 표시할 레이블에 ▶ 붙이기
+    display_labels = []
+    for i, label in enumerate(tab_labels):
+        if st.session_state.current_tab == i:
+            display_labels.append(f"▶ {label}")
+        else:
+            display_labels.append(label)
+
+    # 3) 버튼 그리기
+    cols = st.columns(len(tab_labels))
+    for i, col in enumerate(cols):
+        if col.button(display_labels[i], key=f"tab_btn_{i}", use_container_width=True):
+            st.session_state.current_tab = i
+            # 선택 직후 즉시 반영을 위해 rerun
+            st.rerun()
+
+    return st.session_state.current_tab
+
 def main():
     st.markdown(
         """
@@ -80,11 +106,9 @@ def main():
         """,
         unsafe_allow_html=True
     )
-    #st.set_page_config(page_title="PDF 뷰어", layout="wide")
-    # PDF 파일 열기
+
     pdf_path2 = "data/district.pdf"
 
-    #st.header('건축 규제 등 정보')
     st.markdown(
     f"""
     <p style="color:black; font-size:40px; font-weight:normal; font-weight: bold; text-align:center;">
@@ -101,49 +125,26 @@ def main():
     """,
     unsafe_allow_html=True
     )
-    #buildingIndex()
+
     geoParams()
     geoData()
     spaceMap()
 
-    # ✅ 3개 탭 생성
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["건축행위 제한", "건축규모 제한", "기타 제한", "인허가 정보", "건축물대장", "토지 소유정보"])
+    selected_tab = render_tabs()
 
-    st.markdown("""
-    <style>
-    /* 탭 기본 폰트 및 배경 */
-    [data-testid="stTabs"] button {
-        font-size: 18px;
-        padding: 12px 16px;
-        border-radius: 5px 5px 0 0;
-        background-color: #f0f2f6;
-        color: black;
-        font-weight: 600;
-    }
-
-    /* 선택된 탭 강조 */
-    [data-testid="stTabs"] button[aria-selected="true"] {
-        background-color: #2C6BED;
-        color: white;
-        font-weight: bold;
-        font-size: 20px;
-        border-bottom: 2px solid white;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    with tab1:
-        areaPermission()   
-    with tab2:
+    if selected_tab == 0:
+        areaPermission()
+    elif selected_tab == 1:
         spaceIndex()
-    with tab3:
+    elif selected_tab == 2:
         districtAllow(pdf_path2)
-    with tab4:
-        archAllowInfo()        
-    with tab5:
+    elif selected_tab == 3:
+        archAllowInfo()
+    elif selected_tab == 4:
+        st.markdown('<div id="render-trigger" style="display:none;">trigger</div>', unsafe_allow_html=True)
         buildingInfo()
-    with tab6:
-        geoUser()
+    elif selected_tab == 5:
+        geoUser() 
 
 # 토지속성 정보 처리 함수
 def geoParams():
@@ -184,7 +185,7 @@ def geoParams():
 
      # 결과 확인
     #st.write("🔍 검색 트리거 상태:", st.session_state.search_triggered)
-    col1, col2, col3, col4, col5, col6, col7 = st.columns([1.2, 1, 1, 1, 0.3, 0.4, 0.3])
+    col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([1.1, 0.9, 0.9, 0.9, 0.1, 0.1, 0.1, 0.3, 0.4, 0.4])
     with col1:
         umd = st.selectbox(
             '법정동',
@@ -218,7 +219,13 @@ def geoParams():
         bonbun = st.text_input('번지 본번', key=f"{key_prefix}_bonbun")
     with col4:
         bubun = st.text_input('번지 부번', key=f"{key_prefix}_bubun")
-    with col5:        
+    with col5:
+        st.write("")
+    with col6:
+        st.write("")
+    with col7:
+        st.write("")
+    with col8:        
         #st.write('검색')
         st.markdown(
             """
@@ -227,7 +234,7 @@ def geoParams():
             """,
             unsafe_allow_html=True
             )
-        if st.button("검색", type='primary', key=search_btn_key):
+        if st.button("검색", type="primary", key=search_btn_key):
             # ✅ 1. 현재 입력값 임시 백업
             st.session_state["search_triggered"] = True
             st.session_state["umd"] = umd
@@ -247,21 +254,26 @@ def geoParams():
 
             # ✅ 3. 검색 결과는 리런 후 조건문에서 표시
             st.rerun()
-    with col6:
+    with col9:
         st.markdown(
             """
             <div style="height: 27px; background-color: white; padding: 10px;">
             </div>
             """,
             unsafe_allow_html=True
-            )
+        )
         if st.button("초기화", key=reset_btn_key):
+            # ✅ '검색되지 않음' 상태 유지
+            st.session_state["search_triggered"] = False
+            st.session_state["invalid_address"] = True  # ❗ 메시지를 유지하고 싶다면 True로 초기화
+
+            # ✅ 다른 키 전부 삭제 (단, 유지할 것들은 제외)
             for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            #st.session_state[bonbun_key]   # 변수 초기화
-            #st.session_state[bubun_key] = ''
-            st.rerun()               # main() 재시작   
-    with col7:
+                if key not in ("search_triggered", "invalid_address"):
+                    del st.session_state[key]
+
+            st.rerun()
+    with col10:
         st.markdown(
             """
             <div style="height: 27px; background-color: white; padding: 10px;">
@@ -301,19 +313,19 @@ def geoParams():
         components.html(popup_html, height=60)
 
     # 👉 선택값 변경 감지
-    if st.session_state.prev_umd != umd or st.session_state.prev_umd2 != umd2:
-        keys_to_clear = [
-            'bonbun', 'bubun', 'search_triggered', 
-            'vworld_x', 'vworld_y', 'address', 
-            'cutFGeoLnm_lndcgr_smbol', 
-            'fGeoPrpos_area_dstrc_nm_list', 
-            'items_cleaned_fGeoPrpos_area_dstrc_nm_list'
-        ]
-        for key in keys_to_clear:
-            st.session_state.pop(key, None)
-        st.session_state.prev_umd = umd
-        st.session_state.prev_umd2 = umd2
-        st.rerun()
+    #if st.session_state.prev_umd != umd or st.session_state.prev_umd2 != umd2:
+        #keys_to_clear = [
+            #'bonbun', 'bubun', 'search_triggered', 
+            #'vworld_x', 'vworld_y', 'address', 
+            #'cutFGeoLnm_lndcgr_smbol', 
+            #'fGeoPrpos_area_dstrc_nm_list', 
+            #'items_cleaned_fGeoPrpos_area_dstrc_nm_list'
+        #]
+        #for key in keys_to_clear:
+            #st.session_state.pop(key, None)
+        #st.session_state.prev_umd = umd
+        #st.session_state.prev_umd2 = umd2
+        #st.rerun()
 
         
     fumd = f'{umd}'
@@ -327,10 +339,12 @@ def geoParams():
 
         try:
             if not fbonbun or fbonbun.startswith('0'):     #bonbun 이 비어있거나 0으로 시작할 때
+                st.session_state["invalid_address"] = True
                 st.markdown("<span style='color:red; font-weight:bold;'>❗ 없는 주소입니다.</span>", unsafe_allow_html=True)
             else:
                 if not fbubun:             #bubun 이 비어있으면
-                    if fumd2.strip() == '일반':      #아직까지 일반과 산 번지를 제대로 인식 못함 나중에 고치자
+                    if fumd2.strip() == '일반':      
+                        st.session_state["invalid_address"] = False                      
                         params = {
 	                    'service': 'address',
 	                    'request': 'getcoord',
@@ -340,6 +354,7 @@ def geoParams():
 	                    'type': 'parcel',
 	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }                        
                     else:
+                        st.session_state["invalid_address"] = False
                         params = {
 	                    'service': 'address',
 	                    'request': 'getcoord',
@@ -350,9 +365,11 @@ def geoParams():
 	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }
                 else:   #부번이 있을 경우
                     if fbubun.strip().startswith('0'):
+                        st.session_state["invalid_address"] = True
                         st.markdown("<span style='color:red; font-weight:bold;'>❗ 없는 주소입니다.</span>", unsafe_allow_html=True)
                         return
                     if fumd2.strip() == '일반':
+                        st.session_state["invalid_address"] = False
                         params = {
 	                    'service': 'address',
 	                    'request': 'getcoord',
@@ -362,6 +379,7 @@ def geoParams():
 	                    'type': 'parcel',
 	                    'key': 'AF338F49-6AAA-3F06-BD94-FB6CB6817323' }   
                     else:
+                        st.session_state["invalid_address"] = False
                         params = {
 	                    'service': 'address',
 	                    'request': 'getcoord',
@@ -433,6 +451,7 @@ def geoParams():
                     address2 = str(data['response']['refined']['text'])
 
                     if address1 != address2:         #산 번지 인식 마지막 제대로 판별하기
+                        st.session_state["invalid_address"] = True
                         st.markdown("<span style='color:red; font-weight:bold;'>❗ 없는 주소입니다.</span>", unsafe_allow_html=True)
                         st.session_state["block_other_functions"] = True  # 🚫 별도 실행도 막기
                         return  # ✅ 이후 코드 실행 중단
@@ -525,12 +544,15 @@ def geoParams():
                         st.session_state['items_cleaned_fGeoPrpos_area_dstrc_nm_list'] = area_dict
 
         except ZeroDivisionError:
+            st.session_state["invalid_address"] = True
             st.markdown("<span style='color:red; font-weight:bold;'>❗ 없는 주소입니다.</span>", unsafe_allow_html=True)
             #st.error("주소를 다시 확인하여 주시기 바랍니다")
         except ValueError:
+            st.session_state["invalid_address"] = True
             st.markdown("<span style='color:red; font-weight:bold;'>❗ 없는 주소입니다.</span>", unsafe_allow_html=True)
             #st.warning("주소를 다시 확인하여 주시기 바랍니다")
         except Exception as e:
+            st.session_state["invalid_address"] = True
             st.markdown("<span style='color:red; font-weight:bold;'>❗ 없는 주소입니다.</span>", unsafe_allow_html=True)
             #st.exception(f"주소를 다시 확인하여 주시기 바랍니다")
 
@@ -713,7 +735,6 @@ def clear_layer_session(layer):
 
 def geoUser():
     if "land_info" not in st.session_state:
-        #st.warning("📌 토지 정보가 없습니다. 먼저 주소를 검색해주세요.")
         return
 
     land_info = st.session_state["land_info"]
@@ -727,35 +748,34 @@ def geoUser():
 
     html_table = f"""
     <style>
-    table {{
+    .land-table {{
         width: 100%;
         border-collapse: collapse;
-        text-align:center;
+        text-align: center;
         margin: 20px auto;
         font-family: Arial, sans-serif;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         font-size: 14px;
         border: 1px solid black;
+        table-layout: auto;
     }}
-    th, td {{
+    .land-table th, .land-table td {{
         border: 1px solid #ccc;
         padding: 12px 15px;
-        text-align:center;
         font-weight: bold;
     }}
-    th {{
+    .land-table th {{
         background-color: #F4F4F4;
-        font-weight: bold;
     }}
-    tr:nth-child(even) {{
+    .land-table tr:nth-child(even) {{
         background-color: #f9f9f9;
     }}
-    tr:hover {{
+    .land-table tr:hover {{
         background-color: #e6f7ff;
     }}
     </style>
 
-    <table>
+    <table class="land-table">
       <thead>
         <tr><th>항목</th><th>정보</th></tr>
       </thead>
@@ -769,7 +789,6 @@ def geoUser():
       </tbody>
     </table>
     """
-
     st.markdown(html_table, unsafe_allow_html=True)
 
 # 산업단지 용지 조회 함수
@@ -1190,6 +1209,61 @@ def areaPermission():
         if search_term:
             filtered_df = filtered_df[filtered_df['토지이용명'].str.contains(search_term.strip(), na=False)]
 
+        # PDF 파일 준비
+        with open("data/gjcity24.pdf", "rb") as f1:
+            gj_pdf = f1.read()
+
+        with open("data/use.pdf", "rb") as f2:
+            use_pdf = f2.read()
+
+        # 📌 커스텀 CSS: 버튼 크기 축소
+        st.markdown("""
+        <style>
+        .stDownloadButton button {
+            font-size: 11px;
+            padding: 2px 6px;
+            height: 11px;
+            line-height: 1;
+            border-radius: 0px;
+            margin-top: 0px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # 📂 열 구조: [범례(왼쪽), 도시계획조례 버튼, 시행령 버튼]
+        col1, col2, col3 = st.columns([7.8, 1.2, 1])
+
+        with col1:
+            st.markdown(
+                """
+                <p style="font-size:15px; font-weight:bold; color:black; text-align: right; margin-bottom:0;">
+                    <span style="color:black;">범례 : </span>
+                    <span style="color:green;">&nbsp;&nbsp; ０ 건축 가능</span>, 
+                    <span style="color:#ff5e00;"> &nbsp;&nbsp;▲ 조건부 건축 가능(마우스 포인터를 올리면 조건 보임)</span>, 
+                    <span style="color:red;"> &nbsp;&nbsp;X 건축 불가능</span>
+                </p>
+                """,
+                unsafe_allow_html=True
+            )
+
+        with col2:
+            st.download_button(
+                label="📄 시 도시계획조례 별표 24",
+                data=gj_pdf,
+                file_name="광주광역시_도시계획조례_별표24.pdf",
+                mime="application/pdf",
+                key="gjcity24_download"
+            )
+
+        with col3:
+            st.download_button(
+                label="📄 건축법 시행령 별표 1",
+                data=use_pdf,
+                file_name="건축법_시행령_별표1.pdf",
+                mime="application/pdf",
+                key="use_pdf_download"
+            )
+
         # ✅ HTML 테이블 시작
         table_html = "<table style='width:100%; border-collapse: collapse; font-size:14px; border: 1px solid black;'>"
 
@@ -1242,6 +1316,7 @@ def areaPermission():
             l_col = f'{base_area}_법률명'
             l_raw = row.get(l_col, '')
             l_val = str(l_raw) if pd.notna(l_raw) else ''
+
             table_html += f"<td style='border:1px solid #ddd; padding:6px'>{html.escape(l_val)}</td>"
             table_html += "</tr>"
         table_html += "</tbody></table>"
@@ -1708,7 +1783,7 @@ def districtAllow(pdf_path2):
         st.markdown(
             f"""
             <p style="color:red; font-size:14px; font-weight:normal;">
-                ※ 3. 용도지역의 건축물 허용 용도일지라도 4. 용도지구의 건축물 불허 용도에 해당 될 시 해당 용도의 건축 불가
+                ※ 건축행위 제한의 용도지역의 건축물 허용 용도일지라도 용도지구의 건축물 불허 용도에 해당 될 시 해당 용도의 건축 불가
             </p>
             """,
             unsafe_allow_html=True
@@ -1836,17 +1911,16 @@ def make_html_table_multi(title, items, field_map):
     }}
     .fixed-wrap-table {{
         border-collapse: collapse;
-        table-layout: fixed;
-        min-width: 700px;
-        width: auto;
+        table-layout: auto;
+        width: 100%;
         font-size: 14px;
     }}
     .fixed-wrap-table th,
     .fixed-wrap-table td {{
         border: 1px solid #ddd;
         padding: 8px;
-        width: 150px;
         min-width: 150px;
+        max-width: 200px;
         word-wrap: break-word;
         word-break: break-word;
         white-space: normal;
@@ -1876,8 +1950,46 @@ def make_html_table_multi(title, items, field_map):
 
 # 전체 호출 로직
 def archAllowInfo():    
+    # ✅ (1) 스타일 주입: 반드시 가장 상단에 위치
+    style_placeholder = st.empty()
+    style_placeholder.markdown("""
+    <style>
+        .scroll-wrap, .scroll-wrapper {
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        .fixed-wrap-table, .bld-table-html, .bld-table {
+            border-collapse: collapse;
+            font-size: 14px;
+            font-weight: bold;
+            table-layout: auto;
+            width: 100%;
+        }
+        .fixed-wrap-table th, .fixed-wrap-table td,
+        .bld-table-html th, .bld-table-html td,
+        .bld-table th, .bld-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+            word-break: break-word;
+            white-space: nowrap;
+            min-width: 150px;
+            max-width: 200px;
+        }
+        .fixed-wrap-table th, .bld-table-html th, .bld-table th {
+            background-color: #f4f4f4;
+        }
+        .red-text {
+            color: black;
+            font-weight: normal;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
     if st.session_state.get("block_other_functions"):
         return  # 🚫 차단된 경우 아무것도 하지 않음
+
     operations = [
         ("건축인허가 정보", "getApBasisOulnInfo", {
             "platArea": "대지면적(㎡)",
@@ -1911,71 +2023,96 @@ def archAllowInfo():
         })
     ]
 
+    basis_items_cache = []  # 가설건축물 매칭용 원본 데이터 저장
+
     for title, operation, field_map in operations:
         data = call_arch_pms_service_json(operation)
 
-        # ✅ 응답 데이터가 존재할 경우에만 처리
         if data:
             items = (data or {}).get("response", {}) \
-               .get("body", {}).get("items", {}).get("item")
+                .get("body", {}).get("items", {}).get("item")
 
-            # 단일 dict → 리스트로 변환
             if isinstance(items, dict):
                 items = [items]
 
             if operation == "getApBasisOulnInfo":
-                # 대지·건축·연면적, 용적률산정연면적, 건폐율, 용적률 전부가 빈값/0인 record 제거
-                numeric_keys = [
-                    "platArea","archArea","totArea",
-                    "vlRatEstmTotArea","bcRat","vlRat"
-                ]
-                filtered = []
-                for it in items:
-                    # 하나라도 0이 아닌 값(or 빈문자·None 아닌 비숫자)이 있으면 남기기
-                    keep = False
-                    for k in numeric_keys:
-                        raw = it.get(k)
-                        if raw in (None, "", 0, "0"):
-                            continue
-                        try:
-                            if float(raw) != 0:
-                                keep = True
-                                break
-                        except:
-                            keep = True
-                            break
-                    if keep:
-                        filtered.append(it)
-                items = filtered
+                all_basis_items = items  # 원본 전체 저장
 
-            # ✅ 유효한 리스트일 경우 처리
-            if isinstance(items, list) and len(items) > 0:
-                # 오퍼레이션별 정렬
-                if operation == "getApBasisOulnInfo":
-                    items.sort(key=lambda x: x.get("archPmsDay", ""), reverse=True)
-                elif operation == "getApHdcrMgmRgstInfo":
-                    items.sort(key=lambda x: x.get("crtnDay", ""), reverse=True)
-                elif operation == "getApTmpBldInfo":
-                    items.sort(key=lambda x: x.get("crtnDay", ""), reverse=True)
+                # ✅ 화면 출력용: 건폐율·용적률이 모두 0인 항목 제외
+                visible_basis_items = []
+                for it in all_basis_items:
+                    try:
+                        bc = float(it.get("bcRat", "0") or 0)
+                        vl = float(it.get("vlRat", "0") or 0)
+                        if bc != 0 or vl != 0:
+                            visible_basis_items.append(it)
+                    except:
+                        visible_basis_items.append(it)
 
-                # ——— 관리자 비밀번호(플래그) 없으면 '존치 만료일' 컬럼 제거 ———
-                if operation == "getApTmpBldInfo" and not st.session_state.get("is_admin", False):
-                    field_map.pop("tmpbidPrsvExpDay", None)
+                items = visible_basis_items  # 테이블 출력용
+                basis_items_cache = all_basis_items  # 가설건축물 비교용 캐시 저장
 
-                make_html_table_multi(title, items, field_map)
+            if operation != "getApTmpBldInfo":
+                if isinstance(items, list) and len(items) > 0:
+                    if operation == "getApBasisOulnInfo":
+                        items.sort(key=lambda x: x.get("archPmsDay", ""), reverse=True)
+                    elif operation == "getApHdcrMgmRgstInfo":
+                        items.sort(key=lambda x: x.get("crtnDay", ""), reverse=True)
+
+                    make_html_table_multi(title, items, field_map)
+                else:
+                    st.markdown(f'<span style="color:red">❗ {title} 결과 없음</span>', unsafe_allow_html=True)
+
             else:
-                # items가 비어 있으면 메시지 출력
-                st.markdown(f'<span style="color:red">❗ {title} 결과 없음</span>', unsafe_allow_html=True)
+                # ✅ 가설건축물 정보 분기 처리
+                tmp_items = items or []
+                tmp_map = {t.get("sumArchArea"): t for t in tmp_items}
 
-        # ✅ 응답 자체가 없으면 아무 것도 출력하지 않음
+                # 원본 건축허가 정보 기준으로 건폐율·용적률 모두 0인 항목만 필터링
+                zero_ratio_basis = []
+                for b in basis_items_cache:
+                    try:
+                        bc = float(b.get("bcRat", "0") or 0)
+                        vl = float(b.get("vlRat", "0") or 0)
+                        if bc == 0 and vl == 0:
+                            zero_ratio_basis.append(b)
+                    except:
+                        continue
+
+                matched = []
+                for b in zero_ratio_basis:
+                    arch_area = b.get("archArea")
+                    tmp_info = tmp_map.get(arch_area)
+                    if tmp_info:
+                        matched.append({
+                            "platArea": b.get("platArea"),
+                            "archArea": b.get("archArea"),
+                            "totArea": b.get("totArea"),
+                            "strctCdNm": tmp_info.get("strctCdNm"),
+                            "mainPurpsCdNm": tmp_info.get("mainPurpsCdNm"),
+                            "archPmsDay": b.get("archPmsDay")
+                        })
+
+                if matched:
+                    # ✅ 레이블 매핑: 건축허가일을 맨 아래로 배치
+                    merged_field_map = {
+                        "platArea": "대지면적(㎡)",
+                        "archArea": "건축면적(㎡)",
+                        "totArea": "연면적(㎡)",
+                        "strctCdNm": "구조",
+                        "mainPurpsCdNm": "용도",
+                        "archPmsDay": "신고일"
+                    }
+
+                    make_html_table_multi("가설건축물 정보", matched, merged_field_map)
+                else:
+                    st.markdown('<span style="color:red">❗ 가설건축물 결과 없음</span>', unsafe_allow_html=True)
+
         else:
-            pass  # 또는 st.info("응답 없음")
+            pass
 
 # 건축물 대장 정보 공통 API 호출 함수 (JSON 응답)
 def call_Bld_Rgst_service_json(operation: str, pageNo: int = 1, numOfRows: int = 30):
-    import requests
-    import streamlit as st
-
     base_url = f"https://apis.data.go.kr/1613000/BldRgstHubService/{operation}"
     service_key = "zGvV1ra5mlbgyKU7qBkKuXDzKjjwKbVLsXdiNlXSPX0wCydBKmq6kgSEeAS3jtNYW85Kyp4vSv34AcdCGMu4CA=="
 
@@ -2087,14 +2224,14 @@ def make_html_table_grouped(title, items, field_map, group_headers):
 
     column_count = len(field_map) + 1  # 항목명 + 항목 개수
 
-    # ✅ 제목 조건부 변경
+    # ✅ 조건부 안내문
     warning_text = ""
     if title == "건축물대장 표제부":
         first_item = items[0]
         if first_item.get("regstrKindCdNm") == "일반건축물":
             warning_text = '<p style="color:red; font-weight:bold;"> </p>'
 
-    # ✅ 그룹 헤더
+    # ✅ 그룹 헤더 행
     group_row = "<tr><th></th>"
     for group_name, group_keys in group_headers.items():
         colspan = sum(1 for key in group_keys if key in field_map)
@@ -2130,48 +2267,52 @@ def make_html_table_grouped(title, items, field_map, group_headers):
         row += "</tr>"
         data_rows += row
 
-    # ✅ HTML 생성 (이제 안전하게)
+    # ✅ HTML 생성 - 스타일 제한 (.grouped-table-scope 내부로만 적용)
     html_code = f"""
+    <div class="grouped-table-scope">
     <style>
-    .scroll-wrap {{
-        overflow-x: auto;
-        border: 0px solid #333;
-        margin-bottom: 1rem;
-    }}
-    .fixed-wrap-table {{
-        border-collapse: collapse;
-        table-layout: fixed;
-        min-width: 800px;
-        width: auto;
-        font-size: 14px;
-        font-weight: bold;
-    }}
-    .fixed-wrap-table th,
-    .fixed-wrap-table td {{
-        border: 1px solid #ddd;
-        padding: 8px;
-        min-width: 120px;
-        text-align: center;
-        vertical-align: top;
-        word-break: break-word;
-    }}
-    .fixed-wrap-table th {{
-        background-color: #F4F4F4;
-        font-weight: bold;
-    }}
+        .grouped-table-scope .scroll-wrap {{
+            overflow-x: auto;
+            border: 0px solid #333;
+            margin-bottom: 1rem;
+        }}
+        .grouped-table-scope .fixed-wrap-table {{
+            border-collapse: collapse;
+            table-layout: auto;
+            width: 100%;
+            font-size: 14px;
+            font-weight: bold;
+        }}
+        .grouped-table-scope .fixed-wrap-table th,
+        .grouped-table-scope .fixed-wrap-table td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+            min-width: 120px;
+            max-width: 150px;
+            width: auto;
+            text-align: center;
+            vertical-align: top;
+            word-break: break-word;
+        }}
+        .grouped-table-scope .fixed-wrap-table th {{
+            background-color: #F4F4F4;
+            font-weight: bold;
+        }}
     </style>
 
     {warning_text}
     <div class="scroll-wrap">
       <table class="fixed-wrap-table">
         <thead>
-        <tr><th colspan="{column_count}">{title}</th></tr>
-        {field_header_row}
+          <tr><th colspan="{column_count}">{title}</th></tr>
+          {group_row}
+          {field_header_row}
         </thead>
         <tbody>
           {data_rows}
         </tbody>
       </table>
+    </div>
     </div>
     """
 
@@ -2276,74 +2417,72 @@ def render_dual_building_header(recap_info, title_info_list):
         )
         row_count += 1
 
-    # ✅ 상단 정보용 plat/bylots 지정 (리스트 비었을 경우도 안전)
-    if title_info_list and isinstance(title_info_list, list):
-        plat = str(title_info_list[0].get("platPlc", "")).strip() or "-"
-        bylots = str(title_info_list[0].get("bylotCnt", "")).strip() or "-"
-    else:
-        plat = "-"
-        bylots = "-"
+    # ✅ 상단 정보
+    plat = str(title_info_list[0].get("platPlc", "")).strip() or "-"
+    bylots = str(title_info_list[0].get("bylotCnt", "")).strip() or "-"
 
     # ✅ 높이 계산
     row_height = 50
     base_height = 180
     total_height = base_height + (row_height * row_count)
 
-    # ✅ HTML 생성
+    # ✅ HTML 생성 (스타일 함수 범위로 제한)
     html = f"""
+    <div class="custom-wrap">
     <style>
-    .bld-table {{
-        border-collapse: collapse;
-        font-size: 14px;
-        font-weight: bold;
-        width: 100%;
-        margin-bottom: 1rem;
-        table-layout: auto;
-    }}
-    .bld-table th, .bld-table td {{
-        border: 1px solid #999;
-        padding: 6px 10px;
-        text-align: center;
-        vertical-align: middle;
-        word-break: keep-all;
-        white-space: normal;
-    }}
-    .bld-table th {{
-        background-color: #f9f9f9;
-        font-weight: bold;
-    }}
-    .red-text {{
-        color: black;
-        font-weight: normal;
-    }}
+        .custom-wrap .bld-table {{
+            border-collapse: collapse;
+            font-size: 14px;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 1rem;
+            table-layout: auto;
+        }}
+        .custom-wrap .bld-table th,
+        .custom-wrap .bld-table td {{
+            border: 1px solid #999;
+            padding: 6px 10px;
+            text-align: center;
+            vertical-align: middle;
+            word-break: keep-all;
+            white-space: normal;
+        }}
+        .custom-wrap .bld-table th {{
+            background-color: #f9f9f9;
+        }}
+        .custom-wrap .red-text {{
+            color: black;
+            font-weight: normal;
+        }}
     </style>
 
     <!-- 상단 표 -->
     <table class="bld-table">
-      <thead>
+        <thead>
         <tr><th colspan="2">건축물대장 정보</th></tr>
         <tr><th>소재지</th><th>외필지수</th></tr>
-      </thead>
-      <tbody>
+        </thead>
+        <tbody>
         <tr><td class="red-text">{plat}</td><td class="red-text">{bylots}</td></tr>
-      </tbody>
+        </tbody>
     </table>
 
     <!-- 하단 표 -->
     <table class="bld-table">
-      <thead>
+        <thead>
         <tr>
-          <th>대장종류</th>
-          <th>건물명</th>
-          <th>건물동명</th>
-          <th>주용도</th>
+            <th>대장종류</th>
+            <th>건물명</th>
+            <th>건물동명</th>
+            <th>주용도</th>
         </tr>
-      </thead>
-      <tbody>
+        </thead>
+        <tbody>
         {g_row}
         {title_rows}
-      </tbody>
+        </tbody>
     </table>
+    </div>
     """
 
     # ✅ 출력
@@ -2351,7 +2490,45 @@ def render_dual_building_header(recap_info, title_info_list):
 
 def buildingInfo():
     if st.session_state.get("block_other_functions"):
-        return
+        return    
+
+    if st.session_state.get("invalid_address"):
+        return  # 혹은 오류 메시지 유지 및 buildingInfo 등 차단
+    
+    # ✅ 스타일 먼저 삽입 (데이터 없어도 항상 삽입되도록)
+    style_placeholder = st.empty()
+    style_placeholder.markdown("""
+    <style>
+        .scroll-wrap, .scroll-wrapper {
+            overflow-x: auto;
+            margin-bottom: 1rem;
+        }
+        .fixed-wrap-table, .bld-table-html, .bld-table {
+            border-collapse: collapse;
+            font-size: 14px;
+            font-weight: bold;
+            table-layout: auto;
+            width: 100%;
+        }
+        .fixed-wrap-table th, .fixed-wrap-table td,
+        .bld-table-html th, .bld-table-html td,
+        .bld-table th, .bld-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+            word-break: break-word;
+            white-space: nowrap;
+        }
+        .fixed-wrap-table th, .bld-table-html th, .bld-table th {
+            background-color: #f4f4f4;
+        }
+        .red-text {
+            color: black;
+            font-weight: normal;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
     field_map_title = [
         ("기본정보", {
@@ -2394,11 +2571,17 @@ def buildingInfo():
     title_data = call_Bld_Rgst_service_json("getBrTitleInfo")
 
     title_info_list = title_data.get("response", {}).get("body", {}).get("items", {}).get("item", []) if title_data else []
+    # item이 없거나 빈 경우
+    if not title_info_list:
+        st.markdown('<span style="color:red">❗ 건축물대장 정보 없음(국가나 지자체 보안시설 포함)</span>', unsafe_allow_html=True)
+        return
+
     if isinstance(title_info_list, dict):
         title_info_list = [title_info_list]
 
-    if not title_info_list:
-        #st.warning("❗ 표제부 정보가 없습니다.")
+    # ✅ 검색이 명시적으로 실행된 경우 + 결과가 없으면 경고
+    if st.session_state.get("search_triggered") and not title_info_list:
+        st.markdown('<span style="color:red">❗ 건축물대장 정보 없음</span>', unsafe_allow_html=True)
         return
 
     st.markdown(
@@ -2440,7 +2623,7 @@ def buildingInfo():
     dong_labels = [f"{i.get('dongNm', '') or '-'} - {i.get('bldNm', '') or '-'}" for i in title_info_list]
 
     if not dong_labels:
-        st.warning("❗ 동 정보가 없습니다.")
+        st.warning("❗ 동 건축물대장 정보가 없습니다.")
         return
 
     if "selected_dong_index" not in st.session_state:
@@ -2464,18 +2647,6 @@ def buildingInfo():
             """,
             unsafe_allow_html=True
         )
-        st.markdown(
-            """
-            <div style="
-                font-size:12px;
-                color:red;
-                margin-bottom:4px;
-            ">
-                 ※ 현재 웹사이트 디자인 구조로 인해 첫 1회 클릭시 분류 탭이 초기화 되는 문제가 있습니다. 향후 디자인 개편을 통해 수정예정이오니 불편하시더라도 양해바랍니다.
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
         # 2) 실제 라디오 버튼에는 빈 문자열 레이블
         selected_radio = st.radio(
             "",
@@ -2491,34 +2662,41 @@ def buildingInfo():
     selected_index = st.session_state.selected_dong_index
     selected_item = title_info_list[selected_index]
 
-    # 표제부 테이블 출력
+    # 표제부 테이블 출력 (함수 내부 스타일로 제한)
     table_html = """
+    <div class="bld-scope">
     <style>
-    .bld-table-html {
-        border-collapse: collapse;
-        width: 100%;
-        table-layout: auto;
-        font-size: 14px;
-        font-weight: bold;
-    }
-    .bld-table-html th, .bld-table-html td {
-        border: 1px solid #ccc;
-        padding: 6px 10px;
-        text-align: center;
-        vertical-align: middle;
-        white-space: nowrap;
-    }
-    .bld-table-html th {
-        background-color: #f0f0f0;
-    }
+        .bld-scope .bld-table-html {
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: auto;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .bld-scope .bld-table-html th,
+        .bld-scope .bld-table-html td {
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            text-align: center;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .bld-scope .bld-table-html th {
+            background-color: #f0f0f0;
+        }
+        .bld-scope .scroll-wrapper {
+            overflow-x: auto;
+        }
     </style>
-    <div class=\"scroll-wrapper\">
-    <table class=\"bld-table-html\">
+
+    <div class="scroll-wrapper">
+        <table class="bld-table-html">
         <thead>
             <tr><th>선택</th>""" + ''.join(f"<th>{flat_fields[k]}</th>" for k in flat_fields) + """</tr>
         </thead>
         <tbody>
     """
+
     for idx, item in enumerate(title_info_list):
         checked = "✔" if idx == selected_index else ""
         table_html += f"<tr><td>{checked}</td>"
@@ -2527,7 +2705,6 @@ def buildingInfo():
             if key in number_keys and raw not in (None, "", "-"):
                 try:
                     num = float(raw)
-                    # 소수점 최대 2자리, 불필요한 0·소수 제거
                     val = f"{num:,.2f}".rstrip("0").rstrip(".")
                 except:
                     val = str(raw)
@@ -2535,7 +2712,10 @@ def buildingInfo():
                 val = raw or "-"
             table_html += f"<td>{val}</td>"
         table_html += "</tr>"
-    table_html += "</tbody></table></div>"
+
+    table_html += "</tbody></table></div></div>"
+
+    # ✅ 출력
     st.markdown(table_html, unsafe_allow_html=True)
 
     # 층별개요 API 호출 및 출력
@@ -2587,6 +2767,9 @@ def buildingInfo():
             make_html_table_grouped(f"층별개요 - {clicked_dong}", filtered, field_map, group_headers)
         else:
             st.info(f"❗ 선택된 동({clicked_dong})에 대한 층별개요 정보가 없습니다.")
+
+    # ✅ 강제 렌더 트리 트리거 (렌더링 타이밍 이슈 해결용)
+    st.markdown('<div style="display:none">render_trigger</div>', unsafe_allow_html=True)
 
 # 연속지적도
 def spaceMap():
