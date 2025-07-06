@@ -701,7 +701,7 @@ def geoParams():
             """
             <p style="color:red; font-size:14px;">
             ※ 1. 포함(대지가 속해 있는 지역지구 등 정보 표기, 지역지구 등마다 건축제한 등 조건 확인), 2. 저촉(대지에 도로 등 면적이 포함될 경우 표기), 3. 접합(대지가 도로(소로, 중로, 대로 등) 등에 접할 경우 표기)<br>
-            ※ 건축법 제44조에 따라 건축물은 대지에 2미터 이상 접도 의무(너비가 아닌 접한 길이), 다만, 도시계획도로 등이 아닌 옛 도로 등은 표기되지 않으니 건축법상 도로에 해당되는지 건축사와 별도 상담 확인
+            ※ 건축법 제44조에 따라 건축물은 대지에 2미터 이상 접도 의무(너비가 아닌 접한 길이), 다만, 도시계획도로가 아닌 도로는 표기되지 않으니 건축법상 도로에 해당되는지 건축사와 별도 상담 확인
             </p>
             """,
             unsafe_allow_html=True
@@ -2663,30 +2663,33 @@ def buildingInfo():
     selected_item = title_info_list[selected_index]
 
     # 표제부 테이블 출력 (함수 내부 스타일로 제한)
-    table_html = """
+    table_html = f"""
     <div class="bld-scope">
     <style>
-        .bld-scope .bld-table-html {
+        .bld-scope .scroll-wrapper {{
+            overflow-x: auto;
+            max-width: 100%;
+            display: block;
+        }}
+        .bld-scope .bld-table-html {{
             border-collapse: collapse;
             width: 100%;
+            min-width: 900px;
             table-layout: auto;
             font-size: 14px;
             font-weight: bold;
-        }
+        }}
         .bld-scope .bld-table-html th,
-        .bld-scope .bld-table-html td {
+        .bld-scope .bld-table-html td {{
             border: 1px solid #ccc;
             padding: 6px 10px;
             text-align: center;
             vertical-align: middle;
             white-space: nowrap;
-        }
-        .bld-scope .bld-table-html th {
+        }}
+        .bld-scope .bld-table-html th {{
             background-color: #f0f0f0;
-        }
-        .bld-scope .scroll-wrapper {
-            overflow-x: auto;
-        }
+        }}
     </style>
 
     <div class="scroll-wrapper">

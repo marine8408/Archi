@@ -21,8 +21,9 @@ import plotly.express as px
 # 메뉴 매핑 (전역)
 MENU_TO_FILE = {
     "건축 규제 한눈에": "data/archPermission.py",
-    "무료 건축사 상담실": "data/counsel.py",
-    "최신 건축 트렌드": "data/news.py"
+    "찾아가는 건축민원 지원센터": "data/counsel.py",
+    "최신 건축 트렌드": "data/news.py",
+    "설문조사": "data/survey.py"
 }
 
 # 페이지 설정 및 공통 스타일
@@ -80,7 +81,6 @@ def render_sidebar():
         </form>
         """
         st.sidebar.markdown(form, unsafe_allow_html=True)
-
 
     # 마우스 hover 작동 + 밑줄 제거 + 색상 확정
     menu_btn_style2 = """
