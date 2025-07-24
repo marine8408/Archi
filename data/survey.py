@@ -14,7 +14,7 @@ RESPONSES_XLSX = os.path.join(BASE_DIR, "survey_responses.xlsx")
 IP_XLSX = os.path.join(BASE_DIR, "submitted_ips.xlsx")
 ADMIN_PASSWORD = "gwangsan123"
 
-# ✅ 클라이언트 IP 확인 (API 방식)
+# 클라이언트 IP 확인
 def get_client_ip():
     try:
         response = requests.get("https://api64.ipify.org?format=json", timeout=2)
@@ -22,7 +22,7 @@ def get_client_ip():
     except Exception:
         return "unknown"
 
-# ✅ 날짜 파싱 함수 추가
+# 날짜 파싱
 def parse_date(raw):
     try:
         if raw is None or pd.isna(raw):
@@ -46,7 +46,7 @@ def parse_date(raw):
         return None
     return None
 
-# ✅ 설문 파일이 없을 경우 빈 파일 유지
+# 파일 초기화
 def ensure_files_exist():
     if not os.path.exists(BASE_DIR):
         os.makedirs(BASE_DIR)
@@ -59,7 +59,7 @@ def ensure_files_exist():
     if not os.path.exists(IP_XLSX):
         pd.DataFrame(columns=["IP"]).to_excel(IP_XLSX, index=False)
 
-# ✅ 데이터 I/O
+# 질문 및 메타 불러오기
 def load_questions():
     if not os.path.exists(QUESTIONS_XLSX):
         return [], {}
@@ -80,6 +80,7 @@ def load_questions():
     except:
         return [], {}
 
+# 질문 저장
 def save_questions(questions, title, start_date, end_date):
     questions = [str(q) for q in questions]
     with pd.ExcelWriter(QUESTIONS_XLSX, engine="openpyxl") as writer:
@@ -90,14 +91,19 @@ def save_questions(questions, title, start_date, end_date):
             "종료일": [end_date.strftime("%Y-%m-%d")]
         }).to_excel(writer, sheet_name="메타정보", index=False)
 
+# IP 불러오기
 def load_ip_list():
     if os.path.exists(IP_XLSX):
-        return pd.read_excel(IP_XLSX)["IP"].dropna().tolist()
+        df = pd.read_excel(IP_XLSX)
+        return df["IP"].astype(str).dropna().str.strip().tolist()
     return []
 
+# IP 저장
 def save_ip_list(ip_list):
-    pd.DataFrame(ip_list, columns=["IP"]).to_excel(IP_XLSX, index=False)
+    df = pd.DataFrame({"IP": ip_list})
+    df.to_excel(IP_XLSX, index=False)
 
+# 응답 저장
 def save_response(row_dict):
     df = pd.DataFrame([row_dict])
     if os.path.exists(RESPONSES_XLSX):
@@ -106,19 +112,17 @@ def save_response(row_dict):
     else:
         df.to_excel(RESPONSES_XLSX, index=False)
 
-# ✅ 실행 함수 정의
+# 메인 함수
 def main():
     ensure_files_exist()
-    # 홈(건축동향) 페이지 컨테이너 패딩 조정
     st.markdown(
         """
         <style>
             .block-container { padding-top: 1rem !important; }
         </style>
-        """,
-        unsafe_allow_html=True
+        """, unsafe_allow_html=True
     )
-    #st.title("설문조사 시스템")
+
     st.markdown("""
     <p style="color:black; font-size:40px; font-weight:bold; text-align:center;">
         설문조사
@@ -146,13 +150,12 @@ def main():
     """, unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs(["설문 참여", "설문 생성(관리자용)", "설문 통계(관리자용)"])
-
     questions, meta = load_questions()
     title = meta.get("title", "제목 없음")
     start = meta.get("start")
     end = meta.get("end")
 
-    # tab1
+    # tab1: 설문 참여
     with tab1:
         if not questions or not meta:
             st.info("진행 중인 설문이 없습니다.")
@@ -165,10 +168,11 @@ def main():
             elif not (start <= date.today() <= end):
                 st.warning("⏳ 현재는 설문 응답 기간이 아닙니다.")
             else:
-                user_ip = get_client_ip()
+                user_ip = get_client_ip().strip()
+                ip_list = [ip.strip() for ip in load_ip_list()]
                 if user_ip == "unknown":
                     st.warning("⚠️ IP 확인 실패")
-                elif user_ip in load_ip_list():
+                elif user_ip in ip_list:
                     st.warning("이미 참여하셨습니다.")
                 else:
                     with st.form("survey_form"):
@@ -183,16 +187,14 @@ def main():
                         if submitted:
                             now = datetime.now()
                             save_response({"IP": user_ip, "제출시각": now.strftime("%Y-%m-%d %H:%M:%S"), **answers})
-                            ip_list = load_ip_list()
                             ip_list.append(user_ip)
                             save_ip_list(ip_list)
                             st.success("설문 제출 완료!")
                             time.sleep(2)
                             st.rerun()
 
-    # tab2
+    # tab2: 설문 생성
     with tab2:
-        #st.subheader("설문 항목 생성(관리자용)")
         pw = st.text_input("비밀번호 입력", type="password")
         if pw == ADMIN_PASSWORD:
             st.success("인증 성공!")
@@ -200,22 +202,18 @@ def main():
             existing_qs, _ = load_questions()
             if existing_qs:
                 st.warning("기존 설문이 존재합니다.")
-                
-                # ⚠️ 기존 설문 삭제 영역
                 with st.expander("🗑 기존 설문만 삭제하기"):
                     st.warning("⚠️ 이 작업은 되돌릴 수 없습니다.\n\n모든 설문 문항, 응답, IP 기록이 삭제됩니다.")
                     confirm_delete = st.checkbox("정말 삭제하시겠습니까?")
                     if st.button("삭제 실행"):
                         if confirm_delete:
-                            if os.path.exists(QUESTIONS_XLSX): os.remove(QUESTIONS_XLSX)
-                            if os.path.exists(RESPONSES_XLSX): os.remove(RESPONSES_XLSX)
-                            if os.path.exists(IP_XLSX): os.remove(IP_XLSX)
+                            for path in [QUESTIONS_XLSX, RESPONSES_XLSX, IP_XLSX]:
+                                if os.path.exists(path): os.remove(path)
                             st.success("✅ 기존 설문이 모두 삭제되었습니다.")
                             time.sleep(2)
                             st.rerun()
                         else:
                             st.error("삭제를 진행하려면 확인란에 체크해 주세요.")
-
                 confirm = st.checkbox("⚠️ 기존 설문을 삭제하고 새 설문을 저장합니다. 모든 설문 문항, 응답, IP 기록이 삭제됩니다.")
             else:
                 confirm = True
@@ -241,27 +239,24 @@ def main():
                     st.warning("기존 설문 삭제 동의가 필요합니다.")
                 else:
                     save_questions(new_questions, title, start, end)
-                    if os.path.exists(RESPONSES_XLSX): os.remove(RESPONSES_XLSX)
-                    if os.path.exists(IP_XLSX): os.remove(IP_XLSX)
+                    for path in [RESPONSES_XLSX, IP_XLSX]:
+                        if os.path.exists(path): os.remove(path)
                     st.success("설문 저장 완료")
                     time.sleep(2)
                     st.rerun()
         elif pw:
             st.error("비밀번호가 틀렸습니다.")
 
-    # tab3
+    # tab3: 통계
     with tab3:
-        #st.subheader("📊 설문 통계 (관리자 전용)")
         pw2 = st.text_input("비밀번호 입력", type="password", key="pw2")
-
         if pw2 == ADMIN_PASSWORD:
             if os.path.exists(RESPONSES_XLSX):
                 df = pd.read_excel(RESPONSES_XLSX)
                 st.success(f"응답 수: {len(df)}명")
                 questions, _ = load_questions()
 
-                chart_data = []
-                subjective_data = []
+                chart_data, subjective_data = [], []
 
                 for q in questions:
                     text, qtype = q.split(":") if ":" in q else (q, "객관식")
@@ -278,17 +273,9 @@ def main():
                                 })
 
                 chart_df = pd.DataFrame(chart_data)
-
                 if not chart_df.empty and set(["문항", "응답", "응답 수"]).issubset(chart_df.columns):
-                    fig = px.bar(
-                        chart_df,
-                        x="문항",
-                        y="응답 수",
-                        color="응답",
-                        barmode="group",
-                        title="전체 설문 응답 통계 (객관식 항목)",
-                        height=600
-                    )
+                    fig = px.bar(chart_df, x="문항", y="응답 수", color="응답", barmode="group",
+                                 title="전체 설문 응답 통계 (객관식 항목)", height=600)
                     st.plotly_chart(fig, use_container_width=True)
                 else:
                     st.info("시각화할 수 있는 객관식 응답 데이터가 없습니다.")
@@ -303,7 +290,6 @@ def main():
                 output = BytesIO()
                 df.to_excel(output, index=False, engine="openpyxl")
                 output.seek(0)
-
                 st.download_button(
                     label="설문 결과 엑셀파일 다운로드",
                     data=output,
@@ -315,6 +301,5 @@ def main():
         elif pw2:
             st.error("비밀번호가 틀렸습니다.")
 
-# ✅ 실행
 if __name__ == "__main__":
     main()

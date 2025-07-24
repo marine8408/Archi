@@ -129,13 +129,6 @@ def render_sidebar():
         </div>
         """,
         """
-        <div style='margin-top:10px;text-align:center;font-size:12px;color:gray;'>
-          본 웹사이트는 광산구청(기관)에서<br>
-          제공하는 행정서비스가 아닙니다.<br>
-          이 점 참고하시어 이용에 착오 없으시기 바랍니다.
-        </div>
-        """,
-        """
         <div style='margin-top:10px;text-align:center;font-size:14px;color:gray;'>
           제공: 광산구 건축 AI 동아리, 제작: 장하종
         </div>

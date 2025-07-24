@@ -59,7 +59,7 @@ def search_news(query, display=20, sort="date", use_similarity_filter=True):
                         vectors = vectorizer.transform(corpus.tolist())
                         keyword_vec = vectorizer.transform([query])
                         sims = cosine_similarity(vectors, keyword_vec).flatten()
-                        df = df[sims >= 0.08].reset_index(drop=True)   #sims >= 0.08  값을 올릴 수록 정확도 올라감 내릴수록 정확도 낮아짐
+                        df = df[sims >= 0.07].reset_index(drop=True)   #sims >= 0.08  값을 올릴 수록 정확도 올라감 내릴수록 정확도 낮아짐
             return df.drop(columns=["본문"], errors="ignore")
         else:
             st.error(f"❌ API 오류: {res.status_code}")
