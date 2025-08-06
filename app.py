@@ -22,6 +22,7 @@ import plotly.express as px
 MENU_TO_FILE = {
     "건축 규제 한눈에": "data/archPermission.py",
     "찾아가는 건축민원 지원센터": "data/counsel.py",
+    "재난경보 알림톡": "data/disaster.py",
     "최신 건축 트렌드": "data/news.py",
     "설문조사": "data/survey.py"
 }
@@ -109,9 +110,48 @@ def render_sidebar():
     """
     st.sidebar.markdown(menu_btn_style2, unsafe_allow_html=True)
 
+    # 지식대상 임시사이트
+    external_link_html1 = """
+    <style>
+    @keyframes blink {0%,100%{opacity:1;}50%{opacity:0.4;}}
+    .blink-blue{animation:blink 1.8s infinite;color:#0000FF;font-weight:bold;}
+    .blink-red{animation:blink 1.8s infinite;color:#FF0000;font-weight:bold;}
+    .menu-btn3 {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 10px 0;
+        color: black !important;
+        cursor: pointer;
+        font-size: 20px;
+        display: block;
+        width: 100%;
+        text-align: center;
+        transition: all 0.3s;
+        text-decoration: none !important;
+    }
+    .menu-btn3:hover {
+        color: navy !important;
+        font-weight: bold;
+        transform: scale(1.05);
+        text-decoration: none !important;
+    }
+    </style>
+    <div style='text-align:center; margin-top:100px; font-size:20px;'>
+        <div style='font-size:20px; margin-bottom:10px;'>
+            <span class='blink-blue'>제14회</span>
+            <span class='blink-blue'>대한민국</span>
+            <span class='blink-red'>지식대상</span>
+            <span class='blink-red'>선정</span>
+        </div>
+        <a href="https://link24.kr/8pgcWur" target="_blank" class="menu-btn3">🗳️ 국민심사 투표</a>
+    </div>
+    """
+    st.sidebar.markdown(external_link_html1, unsafe_allow_html=True)
+
     # 외부 링크 섹션
     external_link_html = """
-    <div style='text-align:center; margin-top:150px; font-size:14px;'>
+    <div style='text-align:center; margin-top:50px; font-size:14px;'>
         <div style='font-weight:normal; font-size:14px; margin-bottom:10px;'>외부사이트 연결</div>
         <a href="https://www.gwangsan.go.kr" target="_blank" class="menu-btn2">광산구청</a>
         <a href="https://www.eais.go.kr" target="_blank" class="menu-btn2">건축행정시스템(세움터)</a>
