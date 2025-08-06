@@ -8,6 +8,7 @@ import json
 import os
 from datetime import datetime, timezone
 import streamlit as st
+import shutil
 
 # ================================
 # 1. API 및 파일 설정
@@ -39,6 +40,13 @@ def generate_solapi_headers():
     }
 
 def save_uploaded_file(uploaded_file, filename):
+    # 📦 기존 파일 백업
+    if os.path.exists(filename):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = f"{filename}.bak_{timestamp}"
+        shutil.copy(filename, backup_path)
+        st.info(f"기존 파일 백업됨: {backup_path}")
+
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     with open(filename, "wb") as f:
         f.write(uploaded_file.getbuffer())
@@ -64,8 +72,8 @@ def fetch_crisis_data(show_raw=False):
     payloads = {
         "serviceKey": CRISIS_API_KEY,
         "returnType": "json",
-        "pageNo": "30",
-        "numOfRows": "30"
+        "pageNo": "1",
+        "numOfRows": "100"
     }
     try:
         response = requests.get(CRISIS_API_URL, params=payloads, verify=False, timeout=10)
@@ -115,12 +123,35 @@ def get_current_disasters():
     if not crisis_data:
         return matched_list
 
-    items = crisis_data.get("body", {}).get("items", [])
+    body = crisis_data.get("body", [])
+    # API 응답 body가 리스트인지 확인 후 처리
+    if isinstance(body, list):
+        items = body
+    elif isinstance(body, dict):
+        items = body.get("items", [])
+    else:
+        items = []
+
+    # ✅ 현재 날짜 기준 최근 1년 필터링 기준일 계산
+    today = datetime.now()
+    cutoff_date = today.replace(year=today.year - 1)
+
     for item in items:
         crisis_code = str(item.get("MRGNCY_SHP_CD", ""))
         level_code = str(item.get("WRN_STEP_CD", ""))
         modified_dt = item.get("LAST_MDFCN_DT", "")
+        rpt_ymd = item.get("RPT_YMD", "")
 
+        # ✅ 보고일자(RPT_YMD) 기반 최근 1년치 필터링
+        if rpt_ymd:
+            try:
+                rpt_date = datetime.strptime(rpt_ymd, "%Y%m%d")
+                if rpt_date < cutoff_date:
+                    continue  # 최근 1년 이전 데이터는 제외
+            except Exception:
+                continue  # 날짜 변환 오류 시 스킵
+
+        # ✅ crisis.xlsx 파일 내 코드와 매칭 및 경보단계코드 확인
         if crisis_code in crisis_codes and level_code != "00":
             matched = template_df[
                 (template_df["위기징후 코드"].astype(str) == crisis_code) &
@@ -132,8 +163,10 @@ def get_current_disasters():
                     "경보단계": level_code,
                     "재난명": matched.iloc[0]["재난명"],
                     "템플릿ID": matched.iloc[0]["템플릿 ID"],
-                    "최종수정일시": modified_dt
+                    "최종수정일시": modified_dt,
+                    "보고일자": rpt_ymd
                 })
+
     return matched_list
 
 def manual_dispatch():
@@ -169,6 +202,8 @@ def main():
 
         st.markdown("<h1 style='text-align:center;'>광산구 재난경보 알림톡 시스템</h1>", unsafe_allow_html=True)
 
+
+
         if st.button("위기징후관리 API 결과(JSON) 보기"):
             fetch_crisis_data(show_raw=True)
 
@@ -180,6 +215,23 @@ def main():
             st.info("현재 발령 중인 재난이 없습니다.")
 
         st.markdown("---")
+
+        # ✅ 파일 상태 및 다운로드
+        st.subheader("파일 상태 및 다운로드")
+        if os.path.exists(CRISIS_EXCEL_FILE):
+            st.success("✅ Crisis 엑셀 파일이 존재합니다.")
+            with open(CRISIS_EXCEL_FILE, "rb") as f:
+                st.download_button("Crisis 엑셀 파일 다운로드", data=f, file_name="crisis.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("❌ Crisis 엑셀 파일이 존재하지 않습니다.")
+
+        if os.path.exists(RECIPIENTS_EXCEL_FILE):
+            st.success("✅ Recipients 엑셀 파일이 존재합니다.")
+            with open(RECIPIENTS_EXCEL_FILE, "rb") as f:
+                st.download_button("Recipients 엑셀 파일 다운로드", data=f, file_name="recipients.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        else:
+            st.warning("❌ Recipients 엑셀 파일이 존재하지 않습니다.")
+
         st.subheader("📂 파일 업로드")
         crisis_file = st.file_uploader("Crisis 엑셀 파일 업로드", type=["xlsx"])
         if crisis_file:
