@@ -22,7 +22,7 @@ import plotly.express as px
 MENU_TO_FILE = {
     "건축 규제 한눈에": "data/archPermission.py",
     "찾아가는 건축민원 지원센터": "data/counsel.py",
-    "재난경보 알림톡": "data/disaster.py",
+    "재난대응 알림톡": "data/disaster.py",
     "최신 건축 트렌드": "data/news.py",
     "설문조사": "data/survey.py"
 }
