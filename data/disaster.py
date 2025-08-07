@@ -72,14 +72,14 @@ def load_recipients_and_templates():
     return recipients, template_df
 
 def fetch_crisis_data(show_raw=False):
-    """위기징후관리 API에서 최신 데이터 100건 가져오기"""
-    # 1️⃣ totalCount 확인
+    """위기징후관리 API에서 마지막 2페이지(최신 200건) 가져오기"""
     payloads_meta = {
         "serviceKey": CRISIS_API_KEY,
         "returnType": "json",
         "pageNo": "1",
         "numOfRows": "1"
     }
+
     try:
         response_meta = requests.get(CRISIS_API_URL, params=payloads_meta, verify=False, timeout=10)
         if response_meta.status_code != 200:
@@ -91,23 +91,33 @@ def fetch_crisis_data(show_raw=False):
         num_of_rows = 100
         last_page = (total_count // num_of_rows) + 1
 
-        # 2️⃣ 마지막 페이지 호출 (최신 데이터 100건)
-        payloads_latest = {
-            "serviceKey": CRISIS_API_KEY,
-            "returnType": "json",
-            "pageNo": str(last_page),
-            "numOfRows": str(num_of_rows)
-        }
-        response_latest = requests.get(CRISIS_API_URL, params=payloads_latest, verify=False, timeout=10)
-        if response_latest.status_code == 200:
-            data = response_latest.json()
-            if show_raw:
-                st.subheader("위기징후관리 API JSON 응답 (최신 100건)")
-                st.json(data)
-            return data if isinstance(data, dict) else None
-        else:
-            st.error(f"최신 데이터 호출 실패: {response_latest.status_code}")
-            return None
+        all_items = []
+        seen_ids = set()
+
+        for page in [last_page - 1, last_page]:
+            if page < 1:
+                continue  # 예외처리
+            payload = {
+                "serviceKey": CRISIS_API_KEY,
+                "returnType": "json",
+                "pageNo": str(page),
+                "numOfRows": str(num_of_rows)
+            }
+            res = requests.get(CRISIS_API_URL, params=payload, verify=False, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                items = data.get("response", {}).get("body", {}).get("items", [])
+                for item in items:
+                    uid = item.get("MRGNCY_SN")
+                    if uid and uid not in seen_ids:
+                        all_items.append(item)
+                        seen_ids.add(uid)
+
+        if show_raw:
+            st.subheader("위기징후관리 API JSON 응답 (최신 2페이지 합산)")
+            st.json(all_items)
+
+        return {"body": {"items": all_items}}
 
     except Exception as e:
         st.error(f"API 요청 중 오류 발생: {e}")
@@ -306,17 +316,17 @@ def main():
             st.info("⏱️ 처음 실행합니다. 자동감지 발송이 아직 수행되지 않았습니다.")
         else:
             elapsed_seconds = (now - st.session_state["last_run"]).total_seconds()
-            if elapsed_seconds >= 3600:
-                st.markdown("### 🔁 1시간 경과됨: 자동으로 알림톡 발송 수행 중...")
+            if elapsed_seconds >= 43200:  # ✅ 12시간 = 43,200초
+                st.markdown("### 🔁 12시간 경과됨: 자동으로 알림톡 발송 수행 중...")
                 count, people = detect_and_dispatch_updates()
                 st.session_state["last_run"] = now  # 시간 갱신
 
                 if count > 0:
                     st.success(f"✅ 변경된 위기징후 {people}명에게 {count}건의 메시지를 자동 발송했습니다.")
                 else:
-                    st.info("📭 변경된 위기징후가 없어 발송하지 않았습니다.")
+                    st.info("변경된 위기징후가 없어 발송하지 않았습니다.")
             else:
-                remain = int((3600 - elapsed_seconds) // 60)
+                remain = int((43200 - elapsed_seconds) // 60)
                 st.info(f"⏳ 자동 알림톡 발송까지 약 {remain}분 남았습니다.")
 
         # ✅ 위기징후 JSON 보기

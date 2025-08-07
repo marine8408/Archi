@@ -1322,7 +1322,8 @@ def areaPermission():
         table_html += "</tbody></table>"
 
         # ✅ 렌더링
-        components.html(table_html, height=800, scrolling=True)        
+        #components.html(table_html, height=800, scrolling=True)        
+        st.markdown(table_html, unsafe_allow_html=True)
         zoningAllow(pdf_path)     
 
     except FileNotFoundError:
@@ -2365,7 +2366,6 @@ def render_floor_outline(all_flr_items, title_info_list):
         st.info(f"❗ 선택된 동({selected_dongNm})에 대한 층별개요 정보가 없습니다.")
 
 def render_dual_building_header(recap_info, title_info_list):
-    # ✅ 리스트 유효성 검증
     if not isinstance(title_info_list, list) or not title_info_list:
         return
 
@@ -2374,28 +2374,28 @@ def render_dual_building_header(recap_info, title_info_list):
     g_bldNm = recap_info.get("bldNm", "").strip() if recap_info else "-"
     g_purps = recap_info.get("mainPurpsCdNm", "").strip() if recap_info else "-"
 
-    # ✅ 총괄표제부 행 생성
+    # ✅ 총괄표제부 행 생성 (inline style 사용)
+    td_style = "style='border:1px solid #999; padding:6px 10px; color:black;'"
     if g_regstr:
         g_row = (
-            f"<tr>"
-            f"<td class='red-text'>{g_regstr}</td>"
-            f"<td class='red-text'>{g_bldNm}</td>"
-            f"<td class='red-text'>-</td>"
-            f"<td class='red-text'>{g_purps}</td>"
-            f"</tr>"
+            "<tr>\n"
+            f"<td {td_style}>{g_regstr}</td>\n"
+            f"<td {td_style}>{g_bldNm}</td>\n"
+            f"<td {td_style}>-</td>\n"
+            f"<td {td_style}>{g_purps}</td>\n"
+            "</tr>\n"
         )
         row_count = 1
     else:
         g_row = ""
         row_count = 0
 
-    # ✅ 일반 표제부 필터링
+    # ✅ 일반 표제부 필터링 및 행 생성
     filtered_list = [
         item for item in title_info_list
         if "총괄" not in item.get("regstrKindCdNm", "")
     ]
 
-    # ✅ 표제부 행 생성
     title_rows = ""
     for title_info in filtered_list:
         regstr = str(title_info.get("regstrKindCdNm", "")).strip() or "-"
@@ -2408,12 +2408,12 @@ def render_dual_building_header(recap_info, title_info_list):
         purps_combined = f"{purps}, {etcPurps}" if etcPurps and etcPurps != purps else purps or "-"
 
         title_rows += (
-            f"<tr>"
-            f"<td class='red-text'>{regstr} ({mainAtch})</td>"
-            f"<td class='red-text'>{bldNm}</td>"
-            f"<td class='red-text'>{dongNm}</td>"
-            f"<td class='red-text'>{purps_combined}</td>"
-            f"</tr>"
+            "<tr>\n"
+            f"<td {td_style}>{regstr} ({mainAtch})</td>\n"
+            f"<td {td_style}>{bldNm}</td>\n"
+            f"<td {td_style}>{dongNm}</td>\n"
+            f"<td {td_style}>{purps_combined}</td>\n"
+            "</tr>\n"
         )
         row_count += 1
 
@@ -2421,72 +2421,37 @@ def render_dual_building_header(recap_info, title_info_list):
     plat = str(title_info_list[0].get("platPlc", "")).strip() or "-"
     bylots = str(title_info_list[0].get("bylotCnt", "")).strip() or "-"
 
-    # ✅ 높이 계산
-    row_height = 50
-    base_height = 180
-    total_height = base_height + (row_height * row_count)
+    # ✅ 최종 HTML
+    html = (
+        "<table style='width:100%; border-collapse:collapse; font-size:14px; text-align: center; font-weight:bold; margin-bottom:1rem;'>"
+        "<thead>"
+        "<tr><th colspan='2' style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>건축물대장 정보</th></tr>"
+        "<tr>"
+        "<th style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>소재지</th>"
+        "<th style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>외필지수</th>"
+        "</tr>"
+        "</thead>"
+        "<tbody>"
+        f"<tr><td {td_style}>{plat}</td><td {td_style}>{bylots}</td></tr>"
+        "</tbody>"
+        "</table>"
 
-    # ✅ HTML 생성 (스타일 함수 범위로 제한)
-    html = f"""
-    <div class="custom-wrap">
-    <style>
-        .custom-wrap .bld-table {{
-            border-collapse: collapse;
-            font-size: 14px;
-            font-weight: bold;
-            width: 100%;
-            margin-bottom: 1rem;
-            table-layout: auto;
-        }}
-        .custom-wrap .bld-table th,
-        .custom-wrap .bld-table td {{
-            border: 1px solid #999;
-            padding: 6px 10px;
-            text-align: center;
-            vertical-align: middle;
-            word-break: keep-all;
-            white-space: normal;
-        }}
-        .custom-wrap .bld-table th {{
-            background-color: #f9f9f9;
-        }}
-        .custom-wrap .red-text {{
-            color: black;
-            font-weight: normal;
-        }}
-    </style>
-
-    <!-- 상단 표 -->
-    <table class="bld-table">
-        <thead>
-        <tr><th colspan="2">건축물대장 정보</th></tr>
-        <tr><th>소재지</th><th>외필지수</th></tr>
-        </thead>
-        <tbody>
-        <tr><td class="red-text">{plat}</td><td class="red-text">{bylots}</td></tr>
-        </tbody>
-    </table>
-
-    <!-- 하단 표 -->
-    <table class="bld-table">
-        <thead>
-        <tr>
-            <th>대장종류</th>
-            <th>건물명</th>
-            <th>건물동명</th>
-            <th>주용도</th>
-        </tr>
-        </thead>
-        <tbody>
-        {g_row}
-        {title_rows}
-        </tbody>
-    </table>
-    </div>
-    """
-
-    # ✅ 출력
-    components.html(html, height=total_height)
+        "<table style='width:100%; border-collapse:collapse; font-size:14px; text-align: center; font-weight:bold;'>"
+        "<thead>"
+        "<tr>"
+        "<th style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>대장종류</th>"
+        "<th style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>건물명</th>"
+        "<th style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>건물동명</th>"
+        "<th style='border:1px solid #999; padding:6px 10px; background-color:#f9f9f9;'>주용도</th>"
+        "</tr>"
+        "</thead>"
+        "<tbody>"
+        f"{g_row}"
+        f"{title_rows}"
+        "</tbody>"
+        "</table>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 def buildingInfo():
     if st.session_state.get("block_other_functions"):
